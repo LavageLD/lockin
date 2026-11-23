@@ -172,6 +172,11 @@ const FOODS_RAW = [
   ['f_poutine','Poutine (régulière)','1',740,22,80,38],
   ['f_burger','Burger fast-food','1',550,25,45,30],
   ['f_fries','Frites','moyenne',365,4,48,17],
+  ['f_mcdouble','McDouble (McDo)','1',370,21,34,17],
+  ['f_mcdo_poutine_poulet','Poutine poulet croustillant McDo (rég.)','1',1000,31,118,45],
+  ['f_mcdo_poutine','Poutine McDo (rég.)','1',510,17,44,30],
+  ['f_costco_cookie','Biscuit Costco pépites de chocolat','1 biscuit',210,3,27,11],
+  ['f_bagel_pb','Bagel + beurre d’arachide','1 bagel + 2 c. à soupe',460,17,60,17.5],
   ['f_subway','Sous-marin poulet 6 po','1',350,25,45,6],
   ['f_sushi','Sushi (maki)','8 morceaux',300,10,55,4],
 ];

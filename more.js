@@ -159,9 +159,12 @@ A.editFood = el => {
   const k = S.ui.nutDate || dk(); EF = (S.log[k] || []).find(x => x.id === el.dataset.id); if (!EF) return;
   openSheet(() => `<h2 class="sh-t">${esc(EF.name)}</h2><div class="muted mb">${esc(EF.serv || 'portion')} · ${fmt(EF.cal)} cal/portion</div>
     <label class="fl">Portions<input inputmode="decimal" data-i="efQ" value="${EF.q}"></label>
+    <div class="muted sm mb">Valeurs pour 1 portion :</div>
+    <div class="grid2"><label class="fl">Calories<input inputmode="decimal" data-i="efM" data-k="cal" value="${EF.cal}"></label><label class="fl">Protéines (g)<input inputmode="decimal" data-i="efM" data-k="p" value="${EF.p}"></label><label class="fl">Glucides (g)<input inputmode="decimal" data-i="efM" data-k="c" value="${EF.c}"></label><label class="fl">Lipides (g)<input inputmode="decimal" data-i="efM" data-k="f" value="${EF.f}"></label></div>
     <label class="fl">Repas<select data-i="efMeal">${MEALS.map(m => `<option ${m === EF.meal ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
     <button class="btn block acc mt" data-a="efSave">OK</button><button class="btn block danger-ghost mt8" data-a="efDel">Supprimer</button>`);
 };
+I.efM = el => { const v = num(el.value); if (v != null && v >= 0) EF[el.dataset.k] = v; };
 I.efQ = el => { const q = num(el.value); if (q) EF.q = q; };
 C.efMeal = el => EF.meal = el.value;
 A.efSave = () => { save(); closeSheet(); render(); };
