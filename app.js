@@ -347,6 +347,7 @@ VIEWS.home = () => {
       <div class="right"><div class="big">${wc}<small>/${t}</small></div><div class="muted sm">cette semaine</div></div>
     </div>
     <div class="week">${week}</div>
+    ${owedCount() ? `<div class="pastbar mt8">🔁 ${owedCount()} séance${owedCount() > 1 ? 's' : ''} à reprendre — fais-la un jour de repos cette semaine ou la semaine prochaine</div>` : ''}
     <div class="muted sm mt8 center">Aujourd’hui : <b class="txt">${doneToday() ? '✅ séance faite' : gymDays().includes((now.getDay() + 6) % 7) ? '🏋️ jour de gym' : '😴 rest day'}</b></div>
     <div class="track mt8"><div class="fill" style="width:${Math.min(100, wc / t * 100)}%"></div></div>
   </div>

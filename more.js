@@ -86,26 +86,56 @@ function habitStart() {
   if (S.body[0]) c.push(S.body[0].d); const wk = Object.keys(S.water || {}).filter(k => S.water[k] > 0).sort()[0]; if (wk) c.push(wk);
   return c.length ? c.sort()[0] : dk();
 }
-// Statut gym par jour : gym, rest, swap (séance reprise ailleurs dans la semaine), pending, miss, future, off
+// Statut gym par jour : gym, rest, swap (séance reprise ailleurs dans la semaine ou la suivante), pending, miss, future, off
 function gymStatuses(weeks) {
   const today = dk(), start = habitStart(), gd = gymDays(), did = new Set(S.workouts.map(w => dk(w.start))), out = {};
-  let ws = addDays(startOfWeek(new Date()), -7 * (weeks - 1));
-  for (let w = 0; w < weeks; w++, ws = addDays(ws, 7)) {
+  const curWs = startOfWeek(new Date()), W = [];
+  for (let w = weeks; w >= 0; w--) { // une semaine de plus avant pour le report
+    const ws = addDays(curWs, -7 * w);
     const days = Array.from({ length: 7 }, (_, i) => { const k = dk(addDays(ws, i)); return { k, i, planned: gd.includes(i), did: did.has(k) }; });
-    const weekOver = days[6].k < today;
-    let extras = days.filter(d => d.did && !d.planned && d.k >= start).length;
     days.forEach(d => {
       if (d.k > today) out[d.k] = d.did ? 'gym' : 'future';
       else if (d.k < start) out[d.k] = 'off';
       else if (d.did) out[d.k] = 'gym';
       else if (!d.planned) out[d.k] = 'rest';
-      else if (extras > 0) { extras--; out[d.k] = 'swap'; }
-      else if (d.k === today || !weekOver) out[d.k] = 'pending';
-      else out[d.k] = 'miss';
+      else if (d.k === today) out[d.k] = 'pending';
+      else out[d.k] = 'skip';
+    });
+    const skips = days.filter(d => out[d.k] === 'skip');
+    let extra = days.filter(d => d.did && !d.planned && d.k >= start).length;
+    skips.forEach(d => { if (extra > 0) { extra--; out[d.k] = 'swap'; } });
+    W.push({ days, extra, left: skips.filter(d => out[d.k] === 'skip'), current: w === 0 });
+  }
+  // report : les séances en extra d'une semaine rattrapent celles manquées la semaine d'avant
+  for (let w = 0; w < W.length; w++) {
+    const next = W[w + 1];
+    W[w].left.forEach(d => {
+      if (next && next.extra > 0) { next.extra--; out[d.k] = 'swap'; }
+      else out[d.k] = (W[w].current || (next && next.current)) ? 'pending' : 'miss';
     });
   }
   return out;
 }
+weekStreak = function () {
+  const st = gymStatuses(104), t = S.settings.weeklyTarget; let ws = startOfWeek(new Date()), n = 0;
+  const weekDays = w => Array.from({ length: 7 }, (_, i) => st[dk(addDays(w, i))]);
+  const cur = weekDays(ws); if (weekCount(ws) >= t && !cur.includes('miss')) n++;
+  ws = addDays(ws, -7);
+  for (let i = 0; i < 103; i++, ws = addDays(ws, -7)) {
+    const d = weekDays(ws); if (d.every(s => s === 'off' || s == null)) break;
+    if (d.includes('miss') || d.includes('pending') && false) break;
+    n++;
+  }
+  return n;
+};
+consistency = function (weeks = 12) {
+  const st = gymStatuses(weeks); let good = 0, total = 0, ws = startOfWeek(new Date());
+  for (let i = 1; i < weeks; i++) { const w = addDays(ws, -7 * i); const d = Array.from({ length: 7 }, (_, j) => st[dk(addDays(w, j))]); if (d.every(s => s === 'off' || s == null)) continue; total++; if (!d.includes('miss')) good++; }
+  const cur = Array.from({ length: 7 }, (_, j) => st[dk(addDays(ws, j))]);
+  if (weekCount(ws) >= S.settings.weeklyTarget && !cur.includes('miss')) { good++; total++; }
+  return total ? Math.round(good / total * 100) : 100;
+};
+function owedCount() { const st = gymStatuses(2), today = dk(); return Object.keys(st).filter(k => k < today && st[k] === 'pending').length; }
 function simpleStatuses(weeks, okFn) {
   const today = dk(), start = habitStart(), out = {}; let d = addDays(startOfWeek(new Date()), -7 * (weeks - 1));
   for (let i = 0; i < weeks * 7; i++, d = addDays(d, 1)) { const k = dk(d); out[k] = k > today ? 'future' : k < start ? 'off' : okFn(k) ? 'ok' : k === today ? 'pending' : 'miss'; }
@@ -139,7 +169,7 @@ function habitsHTML() {
       <div class="row between sm mt8"><span><b>${s.pct == null ? '–' : s.pct + ' %'}</b> <span class="muted">(${s.good}/${s.good + s.bad})</span></span>
       ${h.legend ? `<span class="hleg"><i class="hs-gym"></i>gym <i class="hs-rest"></i>repos <i class="hs-pending"></i>à reprendre <i class="hs-miss"></i>manqué</span>` : `<span class="hleg"><i class="hs-ok"></i>atteint <i class="hs-miss"></i>manqué</span>`}</div>
     </div>`; }).join('')}
-    <p class="muted sm">Gym : un jour de gym skippé est rattrapé si tu t’entraînes un autre jour de la même semaine (même un rest day). Il devient rouge seulement si la semaine finit sans que tu l’aies repris.</p>`;
+    <p class="muted sm">Gym : un jour de gym skippé est rattrapé si tu t’entraînes un autre jour de la même semaine ou de la semaine d’après (ex. 4/5 puis 6/5 = deux semaines réussies). Il devient rouge seulement si tu l’as pas repris à la fin de la semaine suivante.</p>`;
 }
 let GS = null;
 A.gymSched = () => {
