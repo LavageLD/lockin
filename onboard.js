@@ -1,5 +1,5 @@
 'use strict';
-/* ===== LOCKIN — Bienvenue, compte Google, questionnaire et plan personnalisé ===== */
+/* ===== LOCKIN — Bienvenue, compte, questionnaire et plan personnalisé ===== */
 
 const GSVG = '<svg viewBox="0 0 48 48" width="20" height="20"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
 
@@ -22,29 +22,57 @@ const syncLabel = () => AUTH.lastSync ? `Synchro auto · dernière à ${new Date
 function onAuthUser(u) {
   const ob = $('#ob');
   if (u && ob.classList.contains('open') && !Q) {
-    if (S.settings.profileDone) { closeOb(); render(); toast(`Connecté — salut ${(u.displayName || '').split(' ')[0]} 👋`); }
-    else { initQ((u.displayName || '').split(' ')[0]); showQ(); }
+    if (S.settings.profileDone) { closeOb(); render(); toast(`Connecté — salut ${S.settings.name || ''} 👋`); }
+    else { initQ(); showQ(); }
   }
   if (SH.length) paintSheet();
 }
-A.googleLogin = async () => {
+let AU = { mode: 'signup', email: '', pass: '', busy: false };
+const AUTH_ERR = { 'auth/email-already-in-use': 'Ce courriel a déjà un compte — connecte-toi plutôt', 'auth/invalid-email': 'Courriel invalide', 'auth/weak-password': 'Mot de passe trop court (6 caractères min.)', 'auth/invalid-credential': 'Courriel ou mot de passe incorrect', 'auth/wrong-password': 'Mot de passe incorrect', 'auth/user-not-found': 'Aucun compte avec ce courriel', 'auth/too-many-requests': 'Trop d’essais — attends quelques minutes', 'auth/network-request-failed': 'Pas de connexion internet' };
+function openAuth(mode) {
   if (!AUTH.configured) {
-    return openSheet(() => `<h2 class="sh-t">Connexion Google</h2>
-      <p class="mb">La connexion Google va s’activer une fois l’app sur GitHub avec ton projet Firebase (gratuit, 5 min à configurer).</p>
-      <p class="muted sm mb">En attendant, continue sans compte : quand tu vas te connecter plus tard, tout ce que t’as déjà entré va être envoyé dans ton compte automatiquement.</p>
+    return openSheet(() => `<h2 class="sh-t">Compte Lockin</h2>
+      <p class="mb">Les comptes vont s’activer une fois ton projet Firebase configuré (gratuit, 5 min).</p>
+      <p class="muted sm mb">En attendant, continue sans compte : quand tu vas créer ton compte plus tard, tout ce que t’as déjà entré va être envoyé dedans automatiquement.</p>
       <button class="btn block acc" data-a="closeSheet">OK</button>`);
   }
-  try { toast('Connexion...', 1200); await AUTH.mod.login(); }
-  catch (e) { console.warn(e); toast(e && e.code === 'auth/popup-closed-by-user' ? 'Connexion annulée' : 'Connexion impossible — réessaie'); }
+  AU = { mode, email: AU.email, pass: '', busy: false };
+  openSheet(() => `<h2 class="sh-t">${AU.mode === 'signup' ? 'Créer ton compte' : 'Connexion'}</h2>
+    <p class="muted sm mb">${AU.mode === 'signup' ? 'Tes données vont être sauvegardées dans le cloud. Tu te connectes une fois, pis tu restes connecté sur ce téléphone.' : 'Connecte-toi pour récupérer tes données.'}</p>
+    <label class="fl">Courriel<input type="email" data-i="au" data-k="email" value="${esc(AU.email)}" autocomplete="email" autocapitalize="off" placeholder="toi@exemple.com"></label>
+    <label class="fl">Mot de passe<input type="password" data-i="au" data-k="pass" autocomplete="${AU.mode === 'signup' ? 'new-password' : 'current-password'}" placeholder="${AU.mode === 'signup' ? '6 caractères minimum' : ''}"></label>
+    <button class="btn block acc mt8" data-a="auGo">${AU.mode === 'signup' ? 'Créer mon compte' : 'Me connecter'}</button>
+    <button class="btn block ghost mt8" data-a="auSwitch">${AU.mode === 'signup' ? 'J’ai déjà un compte' : 'Créer un compte'}</button>
+    ${AU.mode === 'login' ? '<button class="link mt8 block-link" data-a="auReset">Mot de passe oublié?</button>' : ''}`);
+}
+I.au = el => AU[el.dataset.k] = el.value.trim();
+A.authSignup = () => openAuth('signup');
+A.authLogin = () => openAuth('login');
+A.googleLogin = async () => {
+  if (!AUTH.configured) return openAuth('signup');
+  try { toast('Connexion Google...', 1500); await AUTH.mod.google(); closeAllSheets(); }
+  catch (e) { console.warn(e); toast(e && e.code === 'auth/popup-closed-by-user' ? 'Connexion annulée' : 'Google marche pas ici — utilise ton courriel', 3000); }
+};
+A.auSwitch = () => { AU.mode = AU.mode === 'signup' ? 'login' : 'signup'; paintSheet(); };
+A.auGo = async () => {
+  if (AU.busy) return; if (!AU.email || !AU.pass) return toast('Entre ton courriel et ton mot de passe');
+  AU.busy = true; toast(AU.mode === 'signup' ? 'Création du compte...' : 'Connexion...', 1500);
+  try { AU.mode === 'signup' ? await AUTH.mod.signup(AU.email, AU.pass) : await AUTH.mod.login(AU.email, AU.pass); closeSheet(); }
+  catch (e) { console.warn(e); toast(AUTH_ERR[e.code] || 'Erreur — réessaie', 2800); }
+  AU.busy = false;
+};
+A.auReset = async () => {
+  if (!AU.email) return toast('Entre ton courriel d’abord');
+  try { await AUTH.mod.resetPassword(AU.email); toast('Courriel de réinitialisation envoyé 📧', 2800); } catch (e) { toast(AUTH_ERR[e.code] || 'Erreur — réessaie'); }
 };
 A.logout = () => confirmSheet('Se déconnecter?', 'Tes données restent sur ce téléphone. Elles se resynchronisent quand tu te reconnectes.', 'Déconnexion', async () => { await AUTH.mod.logout(); AUTH.user = null; closeAllSheets(); toast('Déconnecté'); }, false);
 A.syncNow = async () => { try { await AUTH.mod.syncNow(); toast('Synchronisé ☁️'); } catch (e) { toast('Synchro impossible'); } };
 function accountHTML() {
   const u = AUTH.user;
-  if (u) return `<div class="acct"><div class="acct-av">${u.photoURL ? `<img src="${esc(u.photoURL)}" referrerpolicy="no-referrer">` : esc((u.displayName || '?')[0])}</div><div class="grow"><b>${esc(u.displayName || 'Compte Google')}</b><div class="muted sm">${esc(u.email || '')}</div><div class="sm ok" id="syncTxt">${syncLabel()}</div></div></div>
+  if (u) return `<div class="acct"><div class="acct-av">${esc((S.settings.name || u.email || '?')[0].toUpperCase())}</div><div class="grow"><b>${esc(S.settings.name || 'Mon compte')}</b><div class="muted sm">${esc(u.email || '')}</div><div class="sm ok" id="syncTxt">${syncLabel()}</div></div></div>
     <div class="grid2 mt8"><button class="btn sm" data-a="syncNow">☁️ Synchroniser</button><button class="btn sm ghost" data-a="logout">Déconnexion</button></div>`;
   return `<div class="acct"><div class="acct-av">🔒</div><div class="grow"><b>Pas connecté</b><div class="muted sm">Connecte-toi pour sauvegarder tes données dans le cloud et les avoir sur tous tes appareils.</div></div></div>
-    <button class="btn block gbtn mt8" data-a="googleLogin">${GSVG} Continuer avec Google</button>`;
+    <div class="grid2 mt8"><button class="btn sm acc" data-a="authSignup">Créer un compte</button><button class="btn sm" data-a="authLogin">Me connecter</button></div>`;
 }
 
 /* ---------- écran de bienvenue ---------- */
@@ -61,9 +89,10 @@ function openWelcome() {
       <div><span>🍗</span><div><b>Calories & protéines</b><small>Calculées selon ton corps et ton objectif</small></div></div>
       <div><span>🎥</span><div><b>Coach caméra IA</b><small>Compte tes reps et note ta forme</small></div></div>
     </div>
-    <button class="btn block gbtn" data-a="googleLogin">${GSVG} Continuer avec Google</button>
+    <button class="btn block acc big-btn" data-a="authSignup">Créer un compte</button>
+    <button class="btn block mt8" data-a="authLogin">J’ai déjà un compte</button>
     <button class="btn block ghost mt8" data-a="obStart">Continuer sans compte</button>
-    <p class="muted sm center mt8">Avec Google, tes données sont sauvegardées et synchronisées sur tous tes appareils.</p>
+    <p class="muted sm center mt8">Avec un compte, tes données sont sauvegardées dans le cloud. Tu te connectes une fois et tu restes connecté sur ce téléphone.</p>
   </div>`;
 }
 function closeOb() { Q = null; $('#ob').classList.remove('open'); document.body.classList.remove('lock'); setTimeout(() => { if (!Q) $('#ob').innerHTML = ''; }, 350); }
