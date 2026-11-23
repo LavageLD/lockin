@@ -128,34 +128,59 @@ function rankOf(exId, pr) {
 function plates(w) { const bar = S.settings.barWeight || (u() === 'kg' ? 20 : 45), p = u() === 'kg' ? 20 : 45; return Math.floor((w - bar) / (2 * p) + 1e-9); }
 const PLATE_EX = new Set(['bench', 'squat', 'deadlift', 'ohp', 'bb_row', 'incline_bench', 'front_squat', 'rdl', 'hip_thrust', 'cgbp', 'rack_pull']);
 function badge(lvl, big) { const R = RANKS[lvl]; return `<span class="rk ${big ? 'big' : ''}" style="--rk:${R.c}">${R.i} ${R.n}</span>`; }
+const PR_LIFTS = [
+  { key: 'bench', name: 'Bench', ids: ['bench'] },
+  { key: 'squat', name: 'Squat', ids: ['squat'] },
+  { key: 'deadlift', name: 'Deadlift', ids: ['deadlift'] },
+  { key: 'pull', name: 'Tractions lestées', ids: ['wpullup', 'pullup', 'chinup'], total: true }
+];
+const STD_PULL = { h: [1.0, 1.1, 1.3, 1.55, 1.85], f: [0.75, 0.9, 1.05, 1.25, 1.5] };
+function liftPR(L, excludeId) {
+  let best = null, heavy = null;
+  L.ids.forEach(id => exSessions(id, excludeId).forEach(h => working(h.sets).forEach(s => {
+    const w = num(s.w) || 0, r = num(s.r) || 0; if (!r) return;
+    let score, bw = null;
+    if (L.total) { bw = bwOn(h.date) || (latestBW() && latestBW().w); if (!bw) return; score = e1rm(bw + w, r); }
+    else { if (!w) return; score = e1rm(w, r); }
+    if (!best || score > best.score) best = { score, w, r, date: h.date, bw };
+    if (!L.total && (!heavy || w > heavy.w)) heavy = { w, r, date: h.date };
+  })));
+  return best ? { ...best, heavy } : null;
+}
+function liftRank(L, pr) {
+  if (!pr) return null;
+  const t = L.total ? STD_PULL[S.settings.sex === 'f' ? 'f' : 'h'] : stdFor(L.ids[0]).t;
+  const bw = L.total ? pr.bw : (bwOn(pr.date) || (latestBW() && latestBW().w));
+  if (!bw) return { needBW: true };
+  const val = pr.score / bw; let lvl = 0; t.forEach(th => { if (val >= th) lvl++; });
+  const next = lvl < t.length ? t[lvl] : null, prev = lvl ? t[lvl - 1] : 0;
+  return { lvl, val, bw, next, prog: next ? Math.max(0, Math.min(1, (val - prev) / (next - prev))) : 1, need: next ? Math.ceil(next * bw - pr.score) : 0 };
+}
 function prsHTML() {
-  const ids = [...new Set(S.workouts.flatMap(w => w.ex.map(e => e.exId)))].filter(id => EX(id).type !== 'c' && EX(id).type !== 't');
-  if (!ids.length) return `<p class="muted">Tes records vont apparaître ici après tes premières séances.</p>`;
-  const rows = ids.map(id => { const pr = prOf(id); return { id, pr, rk: rankOf(id, pr) }; }).filter(x => x.pr);
-  rows.sort((a, b) => ((b.rk && !b.rk.needBW) ? b.rk.lvl + 1 : 0) - ((a.rk && !a.rk.needBW) ? a.rk.lvl + 1 : 0) || b.pr.score - a.pr.score);
+  const rows = PR_LIFTS.map(L => { const pr = liftPR(L); return { L, pr, rk: liftRank(L, pr) }; });
   const ranked = rows.filter(x => x.rk && !x.rk.needBW);
-  const needBW = rows.some(x => x.rk && x.rk.needBW);
-  const glob = ranked.length ? Math.round(ranked.reduce((a, x) => a + x.rk.lvl + x.rk.prog * (x.rk.next ? 1 : 0), 0) / ranked.length - 0.49) : null;
-  return `${glob != null ? `<div class="rkglobal" style="--rk:${RANKS[Math.max(0, glob)].c}"><div class="rk-i">${RANKS[Math.max(0, glob)].i}</div><div><small>Rang global</small><b>${RANKS[Math.max(0, glob)].n}</b><div class="muted sm">${RANK_DESC[Math.max(0, glob)]} · moyenne de ${ranked.length} exercice${ranked.length > 1 ? 's' : ''}</div></div></div>` : ''}
-    ${needBW ? `<div class="pastbar">⚖️ Entre ton poids dans Corps pour voir tes rangs selon ton poids de corps</div>` : ''}
-    ${rows.map(({ id, pr, rk }) => {
-      const ex = EX(id), isW = ex.type === 'w';
-      const best = isW ? `${fmt(pr.w, 1)} ${u()} × ${pr.r}` : `${pr.r} reps${pr.w ? ' (+' + fmt(pr.w, 1) + ')' : ''}`;
-      const pl = isW && PLATE_EX.has(id) && pr.heavy ? plates(pr.heavy.w) : 0;
-      return `<button class="prcard" data-a="exInfo" data-ex="${id}">
-        <div class="row between"><b class="grow">${esc(ex.name)}</b>${rk && !rk.needBW ? badge(rk.lvl) : ''}</div>
-        <div class="prline"><span class="prbig">${isW ? fmt(Math.round(pr.score)) + '<small> ' + u() + '</small>' : pr.r + '<small> reps</small>'}</span>
-          <span class="muted sm">${isW ? '1RM estimé · meilleure série ' + best : 'max en une série'} · ${shortDate(pr.date)}</span></div>
-        <div class="prtags">${rk && !rk.needBW && rk.kind === 'ratio' ? `<span class="tag">×${fmt(rk.val, 2)} ton poids (${fmt(rk.bw, 1)} ${u()})</span>` : ''}${pr.heavy && pr.heavy.w !== pr.w ? `<span class="tag">Plus lourd : ${fmt(pr.heavy.w, 1)} × ${pr.heavy.r}</span>` : ''}${pl >= 1 ? `<span class="tag tag-plate">🍽️ ${pl} plate${pl > 1 ? 's' : ''}</span>` : ''}</div>
+  const glob = ranked.length ? Math.max(0, Math.round(ranked.reduce((a, x) => a + x.rk.lvl + (x.rk.next ? x.rk.prog : 0), 0) / ranked.length - 0.49)) : null;
+  const needBW = !latestBW();
+  return `${glob != null ? `<div class="rkglobal" style="--rk:${RANKS[glob].c}"><div class="rk-i">${RANKS[glob].i}</div><div><small>Rang global</small><b>${RANKS[glob].n}</b><div class="muted sm">${RANK_DESC[glob]} · ${ranked.length}/4 lifts classés</div></div></div>` : ''}
+    ${needBW ? `<div class="pastbar">⚖️ Entre ton poids dans Corps pour voir tes rangs</div>` : ''}
+    ${rows.map(({ L, pr, rk }) => {
+      if (!pr) return `<div class="prcard"><div class="row between"><b>${L.name}</b><span class="muted sm">Pas encore de record</span></div><div class="muted sm mt8">${L.total ? 'Log « Tractions lestées » (ou Tractions) avec le poids ajouté dans +Lest.' : 'Log-le dans une séance avec ton poids pis tes reps.'}</div></div>`;
+      const pl = !L.total && pr.heavy ? plates(pr.heavy.w) : 0;
+      const best = L.total ? `${pr.w ? '+' + fmt(pr.w, 1) + ' ' + u() : 'poids du corps'} × ${pr.r}` : `${fmt(pr.w, 1)} ${u()} × ${pr.r}`;
+      return `<button class="prcard" data-a="exInfo" data-ex="${L.ids[0]}">
+        <div class="row between"><b class="grow">${L.name}</b>${rk && !rk.needBW ? badge(rk.lvl) : ''}</div>
+        <div class="prline"><span class="prbig">${fmt(Math.round(pr.score))}<small> ${u()}</small></span>
+          <span class="muted sm">${L.total ? '1RM total estimé (toi + lest)' : '1RM estimé'} · meilleure série ${best} · ${shortDate(pr.date)}</span></div>
+        <div class="prtags">${rk && !rk.needBW ? `<span class="tag">×${fmt(rk.val, 2)} ton poids (${fmt(rk.bw, 1)} ${u()})</span>` : ''}${pr.heavy && pr.heavy.w !== pr.w ? `<span class="tag">Plus lourd : ${fmt(pr.heavy.w, 1)} × ${pr.heavy.r}</span>` : ''}${pl >= 1 ? `<span class="tag tag-plate">🍽️ ${pl} plate${pl > 1 ? 's' : ''}</span>` : ''}</div>
         ${rk && !rk.needBW ? `<div class="track mt8"><div class="fill" style="width:${rk.prog * 100}%;background:${RANKS[Math.min(6, rk.lvl + (rk.next ? 1 : 0))].c}"></div></div>
-          <div class="muted sm mt8">${rk.next ? `Encore <b class="txt">${rk.kind === 'ratio' ? fmt(rk.need) + ' ' + u() + ' au 1RM' : rk.need + ' rep' + (rk.need > 1 ? 's' : '')}</b> pour ${RANKS[rk.lvl + 1].i} ${RANKS[rk.lvl + 1].n}` : 'Rang max atteint 👑'}</div>` : ''}
+          <div class="muted sm mt8">${rk.next ? `Encore <b class="txt">${fmt(rk.need)} ${u()}</b> au 1RM${L.total ? ' total' : ''} pour ${RANKS[rk.lvl + 1].i} ${RANKS[rk.lvl + 1].n}` : 'Rang max atteint 👑'}</div>` : ''}
       </button>`;
     }).join('')}
-    <p class="muted sm mt8">Rangs basés sur des standards de force (1RM estimé ÷ ton poids de corps le jour du record${S.settings.sex === 'f' ? ', ajustés pour femme' : ''}). Fer → Bronze → Argent → Or → Platine → Diamant → Élite.</p>`;
+    <p class="muted sm mt8">Rang = 1RM estimé ÷ ton poids de corps le jour du record${S.settings.sex === 'f' ? ' (standards femme)' : ''}. Tractions : ton poids + le lest. Fer → Bronze → Argent → Or → Platine → Diamant → Élite.</p>`;
 }
 function rankUps(wo) {
   const out = [];
-  wo.ex.forEach(e => { const before = rankOf(e.exId, prOf(e.exId, wo.id)), after = rankOf(e.exId, prOf(e.exId)); if (after && !after.needBW && (!before || before.needBW ? after.lvl > 0 : after.lvl > before.lvl)) out.push({ exId: e.exId, lvl: after.lvl }); });
+  PR_LIFTS.forEach(L => { if (!wo.ex.some(e => L.ids.includes(e.exId))) return; const b = liftRank(L, liftPR(L, wo.id)), a = liftRank(L, liftPR(L)); if (a && !a.needBW && (!b || b.needBW ? a.lvl > 0 : a.lvl > b.lvl)) out.push({ name: L.name, lvl: a.lvl }); });
   return out;
 }
 A.progTab = el => { S.ui.progTab = el.dataset.t; save(); render(); };

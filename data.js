@@ -25,6 +25,7 @@ const LIB_RAW = [
   ['deadlift','Soulevé de terre','Dos','Barre'],
   ['rack_pull','Rack pull','Dos','Barre'],
   ['pullup','Tractions (pull-ups)','Dos','Poids du corps','bw'],
+  ['wpullup','Tractions lestées','Dos','Poids du corps','bw'],
   ['chinup','Tractions supination (chin-ups)','Dos','Poids du corps','bw'],
   ['lat_pulldown','Tirage vertical (lat pulldown)','Dos','Poulie'],
   ['bb_row','Rowing barre','Dos','Barre'],
