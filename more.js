@@ -547,6 +547,8 @@ A.settings = () => openSheet(() => {
     <label class="fl">Barre (${u()})<input inputmode="decimal" data-i="stNum" data-k="barWeight" value="${s.barWeight}"></label>
   </div>
   <label class="toggle"><span>Son + vibration fin du repos</span><input type="checkbox" data-i="stSound" ${s.sound ? 'checked' : ''}></label>
+  <h3 class="mt">Widget</h3>
+  <a class="btn block" href="widget.html" target="_blank" rel="noopener">📱 Mettre le widget sur mon écran d’accueil</a>
   <h3 class="mt">Données</h3>
   <p class="muted sm mb">Tout est sauvegardé sur ton téléphone seulement. Exporte une sauvegarde de temps en temps (surtout avant de changer de téléphone).</p>
   <div class="grid2"><button class="btn" data-a="exportData">⬇️ Exporter</button><label class="btn">⬆️ Importer<input type="file" accept="application/json,.json" data-i="importIn" hidden></label></div>

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr-CA"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Widget Lockin</title><link rel="stylesheet" href="styles.css">
+<style>body{padding:calc(env(safe-area-inset-top) + 20px) 18px 40px;max-width:560px;margin:0 auto}ol{padding-left:20px;line-height:1.7}li{margin-bottom:6px}pre{background:var(--card2);border-radius:12px;padding:12px;font-size:11px;max-height:180px;overflow:auto;white-space:pre-wrap;color:var(--mute)}</style></head>
+<body>
+<h1>Widget Lockin 🔥</h1>
+<p class="muted mb">Tes 150 derniers jours de gym sur ton écran d’accueil, avec ta streak.</p>
+<ol>
+  <li>Installe l’app gratuite <b>Scriptable</b> (App Store).</li>
+  <li>Tape <b>Copier le script</b> ci-dessous.</li>
+  <li>Ouvre Scriptable → <b>+</b> en haut à droite → colle (tiens ton doigt → Coller).</li>
+  <li>Tape le titre « Untitled Script » en haut et renomme-le <b>Lockin</b>, puis <b>Done</b>.</li>
+  <li>Tape le script <b>Lockin</b> pour le lancer → connecte-toi avec ton compte Lockin.</li>
+  <li>Sur ton écran d’accueil : tiens ton doigt → <b>Modifier</b> → <b>Ajouter un widget</b> → <b>Scriptable</b> → taille <b>moyenne</b> → Ajouter.</li>
+  <li>Tiens ton doigt sur le widget → <b>Modifier le widget</b> → Script : <b>Lockin</b>.</li>
+</ol>
+<button class="btn block acc big-btn mt" id="copy">📋 Copier le script</button>
+<p class="muted sm center mt8" id="st"></p>
+<pre id="code">Chargement…</pre>
+<script>
+let code = '';
+fetch('lockin-widget.js?' + Date.now()).then(r => r.text()).then(t => { code = t; document.getElementById('code').textContent = t; });
+document.getElementById('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText(code); document.getElementById('st').textContent = '✅ Copié! Va dans Scriptable et colle-le.'; }
+  catch (e) { const r = document.createRange(); r.selectNodeContents(document.getElementById('code')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.getElementById('st').textContent = 'Sélectionné — tape Copier.'; }
+};
+</script>
+</body></html>
