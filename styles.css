@@ -403,3 +403,6 @@ details summary{cursor:pointer;padding:4px 0}
 .supp.on{border-color:var(--acc);background:rgba(200,255,46,.08)}
 .supp.on .ck{background:var(--acc);border-color:var(--acc);color:var(--ink)}
 .supp small{display:block;color:var(--mute);font-size:12px}
+.cafrow{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.cafrow input{flex:1;min-width:0}
+.cafrow input.mg{flex:0 0 72px;text-align:center;font-weight:700}

@@ -88,7 +88,9 @@ VIEWS.nutrition = () => {
   <div class="card"><h3>Suppléments <button class="link" data-a="suppManage">Gérer</button></h3>${suppHTML(k)}</div>
   <div class="card"><h3>Eau <span class="muted">${fmt(wml / 1000, 2)} / ${fmt(g.water / 1000, 1)} L</span></h3>
     <div class="water">${Array.from({ length: 8 }, (_, i) => `<span class="${wml >= (i + 1) * g.water / 8 ? 'on' : ''}">💧</span>`).join('')}</div>
-    <div class="row gap mt8"><button class="btn sm ghost" data-a="water" data-v="-250">−250</button><button class="btn sm ghost grow" data-a="water" data-v="250">+250 ml</button><button class="btn sm ghost grow" data-a="water" data-v="500">+500 ml</button></div></div>
+    <div class="row gap mt8"><button class="btn sm ghost" data-a="water" data-v="-250">−250</button><button class="btn sm ghost grow" data-a="water" data-v="250">+250 ml</button><button class="btn sm ghost grow" data-a="water" data-v="500">+500 ml</button></div>
+    <div class="logrow mt8"><input inputmode="numeric" id="waterIn" placeholder="Autre quantité (ml)"><button class="btn sm" data-a="waterCustom">+ Ajouter</button></div></div>
+  <div class="card">${cafHTML(k)}</div>
   <div class="grid2"><button class="btn ghost" data-a="copyDay">📋 Copier la veille</button><button class="btn ghost" data-a="goals">🎯 Objectifs</button></div>
   <div class="card mt8"><h3>7 derniers jours</h3><canvas id="cvNut" class="chart sm"></canvas>${weekNutStats(k)}</div>`;
 };
@@ -103,6 +105,7 @@ POST.nutrition = () => {
 };
 A.nutDay = el => { const k = S.ui.nutDate || dk(); const n = dk(addDays(parseDk(k), +el.dataset.d)); if (n > dk()) return; S.ui.nutDate = n === dk() ? null : n; render(); };
 C.nutPick = el => { const v = el.value; if (!v) return; S.ui.nutDate = v >= dk() ? null : v; render(); };
+A.waterCustom = () => { const el = $('#waterIn'), v = Math.round(num(el.value)); if (!v || v < 1 || v > 5000) return toast('Entre un nombre de ml (ex. 350)'); const k = S.ui.nutDate || dk(); S.water[k] = Math.max(0, (S.water[k] || 0) + v); save(); render(); toast(`+${v} ml 💧`, 1200); };
 A.nutToday = () => { S.ui.nutDate = null; render(); };
 A.water = el => { const k = S.ui.nutDate || dk(); S.water[k] = Math.max(0, (S.water[k] || 0) + (+el.dataset.v)); save(); render(); };
 A.copyDay = () => { const k = S.ui.nutDate || dk(), y = dk(addDays(parseDk(k), -1)), L = S.log[y] || []; if (!L.length) return toast('Rien de loggé la veille'); S.log[k] = [...(S.log[k] || []), ...L.map(x => ({ ...x, id: uid() }))]; save(); render(); toast(`${L.length} aliments copiés`); };
@@ -383,3 +386,69 @@ C.suppHour = el => { const s = S.supps[+el.dataset.n]; s.hour = el.value === '' 
 I.spn = el => SPN[el.dataset.k] = el.value;
 A.suppAdd = () => { if (!SPN.name.trim()) return toast('Entre un nom'); S.supps.push({ id: 's_' + uid(), name: SPN.name.trim(), dose: SPN.dose.trim(), hour: null }); SPN = { name: '', dose: '' }; save(); paintSheet(); };
 A.suppDel = el => { S.supps.splice(+el.dataset.n, 1); save(); paintSheet(); };
+
+/* ---------- CAFÉINE ---------- */
+const cafDay = k => (S.caf = S.caf || {})[k] || [];
+const cafTotal = k => cafDay(k).reduce((a, x) => a + x.mg, 0);
+function cafActive() { const now = Date.now(); let t = 0; [dk(), dk(addDays(new Date(), -1))].forEach(k => cafDay(k).forEach(x => { const h = (now - x.t) / 36e5; if (h >= 0 && h < 30) t += x.mg * Math.pow(0.5, h / 5); })); return Math.round(t); }
+function cafUsage() { const c = {}; Object.values(S.caf || {}).forEach(L => L.forEach(x => { if (x.pid) c[x.pid] = (c[x.pid] || 0) + 1; })); return c; }
+function cafSorted() { const c = cafUsage(); return S.cafPresets.slice().sort((a, b) => (c[b.id] || 0) - (c[a.id] || 0)); }
+function cafHTML(k) {
+  const L = cafDay(k), tot = cafTotal(k), lim = S.settings.cafLimit || 400, c = cafUsage();
+  const quick = cafSorted().filter(p => c[p.id]).slice(0, 4);
+  const act = k === dk() ? cafActive() : 0;
+  return `<h3>Caféine <span class="muted">${fmt(tot)} / ${fmt(lim)} mg</span></h3>
+    <div class="track"><div class="fill" style="width:${Math.min(100, tot / lim * 100)}%;background:${tot > lim ? '#FF453A' : tot > lim * .75 ? '#FF9F0A' : '#C8FF2E'}"></div></div>
+    ${tot > lim ? `<div class="sm mt8 bad">⚠️ T’as dépassé ta limite de ${lim} mg aujourd’hui.</div>` : ''}
+    ${L.length ? `<div class="mt8">${L.map(x => `<button class="li tap fi" data-a="cafEdit" data-id="${x.id}" data-d="${k}"><div class="grow"><b>${esc(x.name)}</b><div class="muted sm">${new Date(x.t).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' })}</div></div><b>${fmt(x.mg)} mg</b></button>`).join('')}</div>` : ''}
+    ${quick.length ? `<div class="chips mt8">${quick.map(p => `<button class="chip" data-a="cafAdd" data-id="${p.id}">+ ${esc(p.name)}</button>`).join('')}</div>` : ''}
+    <button class="btn sm ghost block mt8" data-a="cafOpen">+ Ajouter une boisson</button>
+    ${act > 0 ? `<div class="muted sm mt8">☕ ≈ ${fmt(act)} mg encore dans ton système${act > 100 ? ' — ça peut nuire à ton sommeil' : ''}</div>` : ''}`;
+}
+function cafLog(p) {
+  const k = S.ui.nutDate || dk(); const t = k === dk() ? Date.now() : parseDk(k).getTime() + 12 * 36e5;
+  (S.caf[k] = S.caf[k] || []).push({ id: uid(), pid: p.id, name: p.name, mg: p.mg, t });
+  S.caf[k].sort((a, b) => a.t - b.t); save();
+  const tot = cafTotal(k), lim = S.settings.cafLimit || 400;
+  toast(`☕ ${p.name} · +${p.mg} mg${tot > lim ? ` — t’es à ${tot} mg ⚠️` : ''}`, 2000);
+}
+A.cafAdd = el => { const p = S.cafPresets.find(x => x.id === el.dataset.id); if (!p) return; cafLog(p); if (SH.length) closeAllSheets(); render(); };
+let CF = { edit: false, name: '', mg: '' };
+A.cafOpen = () => { CF = { edit: false, name: '', mg: '' }; openSheet(cafSheet, { full: true, onClose: () => render() }); };
+function cafSheet() {
+  const L = cafSorted(), c = cafUsage();
+  return `<div class="row between"><h2 class="sh-t">Caféine</h2><button class="link" data-a="cafEditMode">${CF.edit ? 'Terminé' : '✏️ Modifier les sortes'}</button></div>
+    <p class="muted sm mb">${CF.edit ? 'Change le nom ou les mg selon TES canettes. C’est sauvegardé pour les prochaines fois.' : 'Tape une boisson pour l’ajouter. Les mg sont des estimations, modifie-les si ta canette dit autre chose.'}</p>
+    ${L.map(p => CF.edit
+      ? `<div class="cafrow"><input data-i="cafP" data-id="${p.id}" data-k="name" value="${esc(p.name)}"><input inputmode="numeric" data-i="cafP" data-id="${p.id}" data-k="mg" value="${p.mg}" class="mg"><span class="muted sm">mg</span><button class="icon sm red" data-a="cafDelP" data-id="${p.id}">${IC.x}</button></div>`
+      : `<button class="li tap" data-a="cafAdd" data-id="${p.id}"><div class="grow"><b>${esc(p.name)}</b>${c[p.id] ? `<div class="muted sm">${c[p.id]}× </div>` : ''}</div><b>${fmt(p.mg)} mg</b></button>`).join('')}
+    <h3 class="mt">Nouvelle sorte</h3>
+    <div class="cafrow"><input data-i="cfNew" data-k="name" value="${esc(CF.name)}" placeholder="ex. Monster Pêche"><input inputmode="numeric" data-i="cfNew" data-k="mg" value="${esc(CF.mg)}" placeholder="165" class="mg"><span class="muted sm">mg</span></div>
+    <div class="grid2 mt8"><button class="btn" data-a="cafNew" data-log="0">Enregistrer</button><button class="btn acc" data-a="cafNew" data-log="1">Enregistrer + ajouter</button></div>
+    <h3 class="mt">Limite quotidienne</h3>
+    <div class="logrow"><input inputmode="numeric" data-i="cafLim" value="${S.settings.cafLimit || 400}"><span class="muted sm" style="align-self:center">mg / jour</span></div>
+    <p class="muted sm mt8">Santé Canada recommande max 400 mg par jour pour un adulte.</p>`;
+}
+A.cafEditMode = () => { CF.edit = !CF.edit; paintSheet(); };
+I.cafP = el => { const p = S.cafPresets.find(x => x.id === el.dataset.id); if (!p) return; if (el.dataset.k === 'mg') { const v = Math.round(num(el.value)); if (v >= 0) p.mg = v; } else if (el.value.trim()) p.name = el.value.trim(); save(); };
+A.cafDelP = el => { S.cafPresets = S.cafPresets.filter(x => x.id !== el.dataset.id); save(); paintSheet(); };
+I.cfNew = el => CF[el.dataset.k] = el.value;
+I.cafLim = el => { const v = Math.round(num(el.value)); if (v > 0) { S.settings.cafLimit = v; save(); } };
+A.cafNew = el => {
+  const name = CF.name.trim(), mg = Math.round(num(CF.mg));
+  if (!name || !(mg >= 0)) return toast('Entre un nom et les mg');
+  const p = { id: 'cp_' + uid(), name, mg }; S.cafPresets.unshift(p); CF.name = ''; CF.mg = ''; save();
+  if (el.dataset.log === '1') { cafLog(p); closeAllSheets(); render(); } else { paintSheet(); toast('Ajouté à tes sortes ✅', 1200); }
+};
+let CE = null;
+A.cafEdit = el => {
+  const k = el.dataset.d; CE = { k, x: cafDay(k).find(x => x.id === el.dataset.id) }; if (!CE.x) return;
+  const hm = new Date(CE.x.t).toTimeString().slice(0, 5);
+  openSheet(() => `<h2 class="sh-t">${esc(CE.x.name)}</h2>
+    <div class="grid2"><label class="fl">Caféine (mg)<input inputmode="numeric" data-i="ceMg" value="${CE.x.mg}"></label><label class="fl">Heure<input type="time" data-i="ceT" value="${hm}"></label></div>
+    <button class="btn block acc mt" data-a="ceSave">OK</button><button class="btn block danger-ghost mt8" data-a="ceDel">Supprimer</button>`);
+};
+I.ceMg = el => { const v = Math.round(num(el.value)); if (v >= 0) CE.x.mg = v; };
+C.ceT = el => { const [h, mi] = (el.value || '').split(':').map(Number); if (isNaN(h)) return; const d = parseDk(CE.k); d.setHours(h, mi || 0, 0, 0); CE.x.t = d.getTime(); };
+A.ceSave = () => { S.caf[CE.k].sort((a, b) => a.t - b.t); save(); closeSheet(); render(); };
+A.ceDel = () => { S.caf[CE.k] = S.caf[CE.k].filter(x => x !== CE.x); save(); closeSheet(); render(); };

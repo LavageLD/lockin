@@ -1,6 +1,6 @@
 'use strict';
 /* ===== LOCKIN — cœur de l'app ===== */
-const VERSION = '1.3.0';
+const VERSION = '1.4.0';
 const KEY = 'lockin_v1';
 
 /* ---------- utilitaires ---------- */
@@ -37,11 +37,21 @@ function defaultState() {
     settings: {
       name: '', unit: 'lb', weeklyTarget: 4, rest: 90, barWeight: 45, increment: 5, sound: true,
       goals: { cal: 2500, p: 180, c: 260, f: 75, water: 3000 },
-      goalWeight: null, height: null, age: null, sex: 'h', activity: 1.55, goalType: 'maintain', onboarded: false
+      cafLimit: 400, goalWeight: null, height: null, age: null, sex: 'h', activity: 1.55, goalType: 'maintain', onboarded: false
     },
     exercises: [], routines: presetPack('ppl'), workouts: [],
     body: [], meas: [], photos: [], foods: [], log: {}, water: {},
     supps: [{ id: 'creatine', name: 'Créatine', dose: '5 g', hour: 20 }], suppLog: {}, pushCfg: null,
+    caf: {}, cafPresets: [
+      { id: 'cp_cafe', name: 'Café filtre (250 ml)', mg: 95 }, { id: 'cp_tim_m', name: 'Café Tim Hortons moyen', mg: 205 },
+      { id: 'cp_tim_p', name: 'Café Tim Hortons petit', mg: 140 }, { id: 'cp_espresso', name: 'Espresso (1 shot)', mg: 63 },
+      { id: 'cp_latte', name: 'Latte / cappuccino (2 shots)', mg: 126 }, { id: 'cp_icecap', name: 'Ice Capp Tim moyen', mg: 90 },
+      { id: 'cp_redbull', name: 'Red Bull 250 ml', mg: 80 }, { id: 'cp_redbull_l', name: 'Red Bull 473 ml', mg: 151 },
+      { id: 'cp_monster', name: 'Monster 473 ml', mg: 160 }, { id: 'cp_alani', name: 'Alani Nu', mg: 180 },
+      { id: 'cp_c4', name: 'C4 Energy', mg: 180 }, { id: 'cp_celsius', name: 'Celsius', mg: 180 },
+      { id: 'cp_coke', name: 'Coke / Pepsi (canette)', mg: 34 }, { id: 'cp_the', name: 'Thé noir', mg: 47 },
+      { id: 'cp_preworkout', name: 'Pre-workout (1 scoop)', mg: 200 }
+    ],
     active: null,
     ui: { tab: 'home', calMonth: null, nutDate: null, progEx: null, progMetric: 'e1rm', bwRange: 90, measKey: 'waist' }
   };
