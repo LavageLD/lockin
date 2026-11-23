@@ -41,7 +41,7 @@ function defaultState() {
     },
     exercises: [], routines: presetPack('ppl'), workouts: [],
     body: [], meas: [], photos: [], foods: [], log: {}, water: {},
-    supps: [{ id: 'creatine', name: 'Créatine', dose: '5 g', hour: 20 }], suppLog: {}, pushCfg: null,
+    manualPRs: {}, supps: [{ id: 'creatine', name: 'Créatine', dose: '5 g', hour: 20 }], suppLog: {}, pushCfg: null,
     caf: {}, cafPresets: [
       { id: 'cp_cafe', name: 'Café filtre (250 ml)', mg: 95 }, { id: 'cp_tim_m', name: 'Café Tim Hortons moyen', mg: 205 },
       { id: 'cp_tim_p', name: 'Café Tim Hortons petit', mg: 140 }, { id: 'cp_espresso', name: 'Espresso (1 shot)', mg: 63 },

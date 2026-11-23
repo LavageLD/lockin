@@ -253,12 +253,19 @@ function liftPR(L, excludeId) {
     if (!best || score > best.score) best = { score, w, r, date: h.date, bw };
     if (!L.total && (!heavy || w > heavy.w)) heavy = { w, r, date: h.date };
   })));
+  ((S.manualPRs || {})[L.key] || []).forEach(x => {
+    const w = num(x.w) || 0, r = num(x.r) || 1, bw = num(x.bw) || bwOn(parseDk(x.d)) || (latestBW() && latestBW().w), date = parseDk(x.d).getTime() + 12 * 36e5;
+    if (L.total && !bw) return; if (!L.total && !w) return;
+    const score = L.total ? e1rm(bw + w, r) : e1rm(w, r);
+    if (!best || score > best.score) best = { score, w, r, date, bw, manual: true };
+    if (!L.total && (!heavy || w > heavy.w)) heavy = { w, r, date };
+  });
   return best ? { ...best, heavy } : null;
 }
 function liftRank(L, pr) {
   if (!pr) return null;
   const t = L.total ? STD_PULL[S.settings.sex === 'f' ? 'f' : 'h'] : stdFor(L.ids[0]).t;
-  const bw = L.total ? pr.bw : (bwOn(pr.date) || (latestBW() && latestBW().w));
+  const bw = pr.bw || (bwOn(pr.date) || (latestBW() && latestBW().w));
   if (!bw) return { needBW: true };
   const val = pr.score / bw; let lvl = 0; t.forEach(th => { if (val >= th) lvl++; });
   const next = lvl < t.length ? t[lvl] : null, prev = lvl ? t[lvl - 1] : 0;
@@ -272,20 +279,53 @@ function prsHTML() {
   return `${glob != null ? `<div class="rkglobal" style="--rk:${RANKS[glob].c}"><div class="rk-i">${RANKS[glob].i}</div><div><small>Rang global</small><b>${RANKS[glob].n}</b><div class="muted sm">${RANK_DESC[glob]} · ${ranked.length}/4 lifts classés</div></div></div>` : ''}
     ${needBW ? `<div class="pastbar">⚖️ Entre ton poids dans Corps pour voir tes rangs</div>` : ''}
     ${rows.map(({ L, pr, rk }) => {
-      if (!pr) return `<div class="prcard"><div class="row between"><b>${L.name}</b><span class="muted sm">Pas encore de record</span></div><div class="muted sm mt8">${L.total ? 'Log « Weighted Pull-ups » (ou Pull-ups) avec le poids ajouté dans +Lest.' : 'Log-le dans une séance avec ton poids pis tes reps.'}</div></div>`;
+      if (!pr) return `<div class="prcard"><div class="row between"><b>${L.name}</b><span class="muted sm">Pas encore de record</span></div><button class="btn block acc sm mt8" data-a="prAdd" data-k="${L.key}">+ Entrer mon record</button></div>`;
       const pl = !L.total && pr.heavy ? plates(pr.heavy.w) : 0;
       const best = L.total ? `${pr.w ? '+' + fmt(pr.w, 1) + ' ' + u() : 'poids du corps'} × ${pr.r}` : `${fmt(pr.w, 1)} ${u()} × ${pr.r}`;
-      return `<button class="prcard" data-a="exInfo" data-ex="${L.ids[0]}">
+      return `<div class="prcard">
         <div class="row between"><b class="grow">${L.name}</b>${rk && !rk.needBW ? badge(rk.lvl) : ''}</div>
         <div class="prline"><span class="prbig">${fmt(Math.round(pr.score))}<small> ${u()}</small></span>
           <span class="muted sm">${L.total ? '1RM total estimé (toi + lest)' : '1RM estimé'} · meilleure série ${best} · ${shortDate(pr.date)}</span></div>
         <div class="prtags">${rk && !rk.needBW ? `<span class="tag">×${fmt(rk.val, 2)} ton poids (${fmt(rk.bw, 1)} ${u()})</span>` : ''}${pr.heavy && pr.heavy.w !== pr.w ? `<span class="tag">Plus lourd : ${fmt(pr.heavy.w, 1)} × ${pr.heavy.r}</span>` : ''}${pl >= 1 ? `<span class="tag tag-plate">🍽️ ${pl} plate${pl > 1 ? 's' : ''}</span>` : ''}</div>
         ${rk && !rk.needBW ? `<div class="track mt8"><div class="fill" style="width:${rk.prog * 100}%;background:${RANKS[Math.min(6, rk.lvl + (rk.next ? 1 : 0))].c}"></div></div>
           <div class="muted sm mt8">${rk.next ? `Encore <b class="txt">${fmt(rk.need)} ${u()}</b> au 1RM${L.total ? ' total' : ''} pour ${RANKS[rk.lvl + 1].i} ${RANKS[rk.lvl + 1].n}` : 'Rang max atteint 👑'}</div>` : ''}
-      </button>`;
+        <div class="row gap mt8"><span class="btn sm acc grow" data-a="prAdd" data-k="${L.key}">+ Nouveau record</span>${((S.manualPRs || {})[L.key] || []).length ? `<span class="btn sm ghost" data-a="prList" data-k="${L.key}">Historique</span>` : ''}</div>
+      </div>`;
     }).join('')}
-    <p class="muted sm mt8">Rang = 1RM estimé ÷ ton poids de corps le jour du record${S.settings.sex === 'f' ? ' (standards femme)' : ''}. Tractions : ton poids + le lest. Fer → Bronze → Argent → Or → Platine → Diamant → Élite.</p>`;
+    <p class="muted sm mt8">Entre tes records à la main (ou ils sont pris automatiquement de tes séances). Rang = 1RM estimé ÷ ton poids de corps le jour du record${S.settings.sex === 'f' ? ' (standards femme)' : ''}. Tractions : ton poids + le lest. Fer → Bronze → Argent → Or → Platine → Diamant → Élite.</p>`;
 }
+let PA = null;
+A.prAdd = el => {
+  const L = PR_LIFTS.find(x => x.key === el.dataset.k), bw = latestBW();
+  PA = { k: L.key, d: dk(), w: '', r: '1', bw: bw ? String(bw.w) : '' };
+  openSheet(() => { const L = PR_LIFTS.find(x => x.key === PA.k), w = num(PA.w), r = num(PA.r) || 1, b = num(PA.bw);
+    const est = L.total ? (b ? e1rm(b + (w || 0), r) : 0) : (w ? e1rm(w, r) : 0); const rk = est && b ? liftRank(L, { score: est, bw: b, date: Date.now() }) : null;
+    return `<h2 class="sh-t">${L.name}</h2>
+    <div class="grid2"><label class="fl">${L.total ? 'Poids ajouté (lest)' : 'Poids soulevé'} (${u()})<input inputmode="decimal" data-i="pa" data-k="w" value="${esc(PA.w)}" placeholder="${L.total ? '0 si sans lest' : 'ex. 225'}"></label>
+    <label class="fl">Reps<input inputmode="numeric" data-i="pa" data-k="r" value="${esc(PA.r)}"></label>
+    <label class="fl">Ton poids de corps (${u()})<input inputmode="decimal" data-i="pa" data-k="bw" value="${esc(PA.bw)}"></label>
+    <label class="fl">Date<input type="date" data-i="pa" data-k="d" value="${PA.d}" max="${dk()}"></label></div>
+    <div id="paPrev">${paPreview(L, est, rk)}</div>
+    <button class="btn block acc mt" data-a="prSave">Enregistrer le record</button>`; });
+};
+function paPreview(L, est, rk) {
+  if (!est) return `<p class="muted sm">Entre tes chiffres pour voir ton rang.</p>`;
+  return `<div class="card inset center"><div class="muted sm">${L.total ? '1RM total estimé (toi + lest)' : '1RM estimé'}</div><div class="prbig">${fmt(Math.round(est))}<small> ${u()}</small></div>${rk && !rk.needBW ? `<div class="mt8">${badge(rk.lvl, true)}</div><div class="muted sm mt8">×${fmt(rk.val, 2)} ton poids · ${RANK_DESC[rk.lvl]}</div>` : ''}</div>`;
+}
+I.pa = el => { PA[el.dataset.k] = el.value; const L = PR_LIFTS.find(x => x.key === PA.k), w = num(PA.w), r = num(PA.r) || 1, b = num(PA.bw);
+  const est = L.total ? (b ? e1rm(b + (w || 0), r) : 0) : (w ? e1rm(w, r) : 0); const rk = est && b ? liftRank(L, { score: est, bw: b, date: Date.now() }) : null;
+  const p = $('#paPrev'); if (p) p.innerHTML = paPreview(L, est, rk); };
+C.pa = I.pa;
+A.prSave = () => {
+  const L = PR_LIFTS.find(x => x.key === PA.k), w = num(PA.w) || 0, r = Math.max(1, Math.round(num(PA.r) || 1)), b = num(PA.bw);
+  if (!L.total && !w) return toast('Entre le poids soulevé'); if (!b) return toast('Entre ton poids de corps');
+  S.manualPRs = S.manualPRs || {}; (S.manualPRs[L.key] = S.manualPRs[L.key] || []).push({ id: uid(), d: PA.d || dk(), w, r, bw: b });
+  if (PA.d === dk() && !S.body.find(x => x.d === dk())) { S.body.push({ d: dk(), w: b }); S.body.sort((a, c) => a.d < c.d ? -1 : 1); }
+  save(); closeSheet(); render(); toast('Record enregistré 🏆');
+};
+A.prList = el => { const k = el.dataset.k, L = PR_LIFTS.find(x => x.key === k);
+  openSheet(() => `<h2 class="sh-t">${L.name} · historique</h2>${((S.manualPRs || {})[k] || []).slice().sort((a, b) => a.d < b.d ? 1 : -1).map(x => `<div class="hrow"><span class="muted sm">${shortDate(parseDk(x.d))}</span><span>${L.total ? (x.w ? '+' + fmt(x.w, 1) : 'PDC') : fmt(x.w, 1)} × ${x.r} · PDC ${fmt(x.bw, 1)}</span><button class="icon sm red" data-a="prDel" data-k="${k}" data-id="${x.id}">${IC.x}</button></div>`).join('') || '<p class="muted">Aucun record entré à la main.</p>'}`, { onClose: () => render() }); };
+A.prDel = el => { const k = el.dataset.k; S.manualPRs[k] = S.manualPRs[k].filter(x => x.id !== el.dataset.id); save(); paintSheet(); };
 function rankUps(wo) {
   const out = [];
   PR_LIFTS.forEach(L => { if (!wo.ex.some(e => L.ids.includes(e.exId))) return; const b = liftRank(L, liftPR(L, wo.id)), a = liftRank(L, liftPR(L)); if (a && !a.needBW && (!b || b.needBW ? a.lvl > 0 : a.lvl > b.lvl)) out.push({ name: L.name, lvl: a.lvl }); });
