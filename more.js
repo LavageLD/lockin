@@ -29,8 +29,9 @@ VIEWS.progress = () => {
   S.workouts.filter(w => w.start >= since).forEach(w => w.ex.forEach(e => { const mu = EX(e.exId).muscle; if (mu !== 'Cardio') ms[mu] = (ms[mu] || 0) + working(e.sets).length; }));
   const mx = Math.max(20, ...Object.values(ms));
   const muscleRows = Object.keys(MUSCLES).filter(m => m !== 'Cardio').map(m => { const v = ms[m] || 0; return `<div class="msrow"><span>${m}</span><div class="mstrack"><div class="msband" style="left:${10 / mx * 100}%;width:${10 / mx * 100}%"></div><div class="msfill" style="width:${v / mx * 100}%;background:${MUSCLES[m]}"></div></div><b>${v}</b></div>`; }).join('');
-  const ptab = S.ui.progTab || 'prs';
-  const seg = `<div class="seg mb"><button class="${ptab === 'prs' ? 'on' : ''}" data-a="progTab" data-t="prs">🏆 Records & rangs</button><button class="${ptab === 'stats' ? 'on' : ''}" data-a="progTab" data-t="stats">📈 Stats</button></div>`;
+  const ptab = S.ui.progTab || 'habits';
+  const seg = `<div class="seg mb"><button class="${ptab === 'habits' ? 'on' : ''}" data-a="progTab" data-t="habits">🔥 Habitudes</button><button class="${ptab === 'prs' ? 'on' : ''}" data-a="progTab" data-t="prs">🏆 Records</button><button class="${ptab === 'stats' ? 'on' : ''}" data-a="progTab" data-t="stats">📈 Stats</button></div>`;
+  if (ptab === 'habits') return seg + habitsHTML();
   if (ptab === 'prs') return seg + prsHTML();
   return seg + `
   <div class="grid2">${statBox('Séances', fmt(S.workouts.length))}${statBox('Records', fmt(totPR))}${statBox('Volume total', totVol >= 1e6 ? fmt(totVol / 1e6, 2) + ' M' : fmt(totVol) + ' ' + u())}${statBox('Temps total', fmt(totTime / 36e5, 1) + ' h')}</div>
@@ -42,7 +43,7 @@ VIEWS.progress = () => {
   <div class="card"><h3>Habitudes</h3>${habitsHTML()}</div>`;
 };
 POST.progress = () => {
-  if ((S.ui.progTab || 'prs') === 'prs') return;
+  if ((S.ui.progTab || 'habits') !== 'stats') return;
   const id = S.ui.progEx;
   if (id) {
     const ex = EX(id); let m = S.ui.progMetric; if (ex.type !== 'w' && (m === 'e1rm' || m === 'maxW')) m = 'maxR';
@@ -73,6 +74,83 @@ function habitsHTML() {
     <div class="muted sm mt8">Jour préféré : <b class="txt">${names[dows.indexOf(md)]}</b> · surtout <b class="txt">${hn[hrs.indexOf(Math.max(...hrs))]}</b> · durée moyenne <b class="txt">${fmtDurShort(dur / S.workouts.length)}</b></div>`;
 }
 
+
+
+/* ---------- HABITUDES (grilles de constance) ---------- */
+const DAYNAMES = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+function defaultGymDays(n) { return ({ 1: [0], 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 3, 4], 6: [0, 1, 2, 3, 4, 5], 7: [0, 1, 2, 3, 4, 5, 6] })[Math.max(1, Math.min(7, n || 4))]; }
+function gymDays() { const g = S.settings.gymDays; return Array.isArray(g) && g.length ? g : defaultGymDays(S.settings.weeklyTarget); }
+function habitStart() {
+  const c = []; if (S.profile && S.profile.at) c.push(dk(S.profile.at));
+  if (S.workouts[0]) c.push(dk(S.workouts[0].start)); const lk = Object.keys(S.log || {}).filter(k => (S.log[k] || []).length).sort()[0]; if (lk) c.push(lk);
+  if (S.body[0]) c.push(S.body[0].d); const wk = Object.keys(S.water || {}).filter(k => S.water[k] > 0).sort()[0]; if (wk) c.push(wk);
+  return c.length ? c.sort()[0] : dk();
+}
+// Statut gym par jour : gym, rest, swap (séance reprise ailleurs dans la semaine), pending, miss, future, off
+function gymStatuses(weeks) {
+  const today = dk(), start = habitStart(), gd = gymDays(), did = new Set(S.workouts.map(w => dk(w.start))), out = {};
+  let ws = addDays(startOfWeek(new Date()), -7 * (weeks - 1));
+  for (let w = 0; w < weeks; w++, ws = addDays(ws, 7)) {
+    const days = Array.from({ length: 7 }, (_, i) => { const k = dk(addDays(ws, i)); return { k, i, planned: gd.includes(i), did: did.has(k) }; });
+    const weekOver = days[6].k < today;
+    let extras = days.filter(d => d.did && !d.planned && d.k >= start).length;
+    days.forEach(d => {
+      if (d.k > today) out[d.k] = d.did ? 'gym' : 'future';
+      else if (d.k < start) out[d.k] = 'off';
+      else if (d.did) out[d.k] = 'gym';
+      else if (!d.planned) out[d.k] = 'rest';
+      else if (extras > 0) { extras--; out[d.k] = 'swap'; }
+      else if (d.k === today || !weekOver) out[d.k] = 'pending';
+      else out[d.k] = 'miss';
+    });
+  }
+  return out;
+}
+function simpleStatuses(weeks, okFn) {
+  const today = dk(), start = habitStart(), out = {}; let d = addDays(startOfWeek(new Date()), -7 * (weeks - 1));
+  for (let i = 0; i < weeks * 7; i++, d = addDays(d, 1)) { const k = dk(d); out[k] = k > today ? 'future' : k < start ? 'off' : okFn(k) ? 'ok' : k === today ? 'pending' : 'miss'; }
+  return out;
+}
+const GOOD = new Set(['gym', 'rest', 'swap', 'ok']);
+function habitStats(st) {
+  const ks = Object.keys(st).sort(); let good = 0, bad = 0; ks.forEach(k => { if (GOOD.has(st[k])) good++; else if (st[k] === 'miss') bad++; });
+  let streak = 0; for (let i = ks.length - 1; i >= 0; i--) { const s = st[ks[i]]; if (s === 'future' || s === 'pending') continue; if (GOOD.has(s)) streak++; else break; }
+  return { good, bad, streak, pct: good + bad ? Math.round(good / (good + bad) * 100) : null };
+}
+function habitsList() {
+  const g = S.settings.goals, W = 20, L = [];
+  L.push({ key: 'gym', name: 'Gym', icon: '🏋️', color: '#FF6B57', st: gymStatuses(W), legend: true });
+  L.push({ key: 'water', name: 'Eau', icon: '💧', color: '#4DA3FF', st: simpleStatuses(W, k => (S.water[k] || 0) >= g.water * 0.95), sub: `objectif ${fmt(g.water / 1000, 1)} L` });
+  L.push({ key: 'prot', name: 'Protéines', icon: '🍗', color: '#FF9F0A', st: simpleStatuses(W, k => dayTotals(k).p >= g.p * 0.95), sub: `objectif ${g.p} g` });
+  (S.supps || []).forEach(s => L.push({ key: 'supp_' + s.id, name: s.name, icon: '💊', color: '#BF5AF2', st: simpleStatuses(W, k => ((S.suppLog || {})[k] || []).includes(s.id)) }));
+  return L;
+}
+function habitGrid(h) {
+  const ks = Object.keys(h.st).sort();
+  return `<div class="hgrid"><div class="hlabels">${DOW.map(d => `<span>${d}</span>`).join('')}</div><div class="hcells">${ks.map(k => { const s = h.st[k]; return `<i class="hs-${s}" title="${k}"></i>`; }).join('')}</div></div>`;
+}
+function habitsHTML() {
+  const gd = gymDays(), todayIdx = (new Date().getDay() + 6) % 7, plannedToday = gd.includes(todayIdx);
+  return `<div class="card"><div class="row between"><div><b>Ton horaire</b><div class="muted sm">${gd.map(i => DAYNAMES[i].slice(0, 3)).join(', ')} · les autres jours = rest days</div></div><button class="link" data-a="gymSched">Modifier</button></div>
+      <div class="sm mt8">Aujourd’hui : <b class="txt">${doneToday() ? '✅ séance faite' : plannedToday ? '🏋️ jour de gym' : '😴 rest day'}</b></div></div>
+    ${habitsList().map(h => { const s = habitStats(h.st); return `<div class="card habit" style="--hc:${h.color}">
+      <div class="row between"><div><b class="habit-n">${h.icon} ${esc(h.name)}</b>${h.sub ? `<div class="muted sm">${h.sub}</div>` : ''}</div><span class="streakpill">🔥 ${s.streak}</span></div>
+      ${habitGrid(h)}
+      <div class="row between sm mt8"><span><b>${s.pct == null ? '–' : s.pct + ' %'}</b> <span class="muted">(${s.good}/${s.good + s.bad})</span></span>
+      ${h.legend ? `<span class="hleg"><i class="hs-gym"></i>gym <i class="hs-rest"></i>repos <i class="hs-pending"></i>à reprendre <i class="hs-miss"></i>manqué</span>` : `<span class="hleg"><i class="hs-ok"></i>atteint <i class="hs-miss"></i>manqué</span>`}</div>
+    </div>`; }).join('')}
+    <p class="muted sm">Gym : un jour de gym skippé est rattrapé si tu t’entraînes un autre jour de la même semaine (même un rest day). Il devient rouge seulement si la semaine finit sans que tu l’aies repris.</p>`;
+}
+let GS = null;
+A.gymSched = () => {
+  GS = gymDays().slice();
+  openSheet(() => `<h2 class="sh-t">Tes jours de gym</h2><p class="muted sm mb">Les jours non choisis sont tes rest days. Si tu changes de jour dans la semaine, c’est correct : ça compte pareil.</p>
+    <div class="daypick">${DOW.map((d, i) => `<button class="${GS.includes(i) ? 'on' : ''}" data-a="gsTog" data-i2="${i}"><b>${d}</b><small>${DAYNAMES[i].slice(0, 3)}</small></button>`).join('')}</div>
+    <p class="center mt8"><b>${GS.length}</b> séance${GS.length > 1 ? 's' : ''} par semaine</p>
+    <button class="btn block acc mt" data-a="gsSave">Enregistrer</button>`);
+};
+A.gsTog = el => { const i = +el.dataset.i2; GS.includes(i) ? GS.splice(GS.indexOf(i), 1) : GS.push(i); GS.sort(); paintSheet(); };
+A.gsSave = () => { if (!GS.length) return toast('Choisis au moins un jour'); S.settings.gymDays = GS.slice(); S.settings.weeklyTarget = GS.length; save(); closeAllSheets(); render(); toast('Horaire enregistré ✅'); };
 
 /* ---------- RECORDS & RANGS ---------- */
 // Seuils (1RM estimé ÷ poids de corps, homme) : débutant, novice, intermédiaire, avancé, élite
@@ -433,7 +511,7 @@ A.settings = () => openSheet(() => {
   <div class="grid2">
     <label class="fl">Unité de poids<select data-i="stUnit"><option value="lb" ${s.unit === 'lb' ? 'selected' : ''}>Livres (lb)</option><option value="kg" ${s.unit === 'kg' ? 'selected' : ''}>Kilos (kg)</option></select></label>
     <label class="fl">Mensurations<select data-i="stMU"><option value="cm" ${mu() === 'cm' ? 'selected' : ''}>cm</option><option value="po" ${mu() === 'po' ? 'selected' : ''}>pouces</option></select></label>
-    <label class="fl">Séances / semaine<input inputmode="numeric" data-i="stNum" data-k="weeklyTarget" value="${s.weeklyTarget}"></label>
+    <label class="fl">Jours de gym<button class="btn block sm" data-a="gymSched" style="margin-top:5px">${gymDays().map(i => DOW[i]).join(' ')} · ${gymDays().length}/sem.</button></label>
     <label class="fl">Repos par défaut (s)<input inputmode="numeric" data-i="stNum" data-k="rest" value="${s.rest}"></label>
     <label class="fl">Incrément (${u()})<input inputmode="decimal" data-i="stNum" data-k="increment" value="${s.increment}"></label>
     <label class="fl">Barre (${u()})<input inputmode="decimal" data-i="stNum" data-k="barWeight" value="${s.barWeight}"></label>

@@ -257,7 +257,7 @@ A.qFinish = () => {
   const P = computePlan(), pr = buildProgram(), s = S.settings;
   if (Q.unit !== s.unit) C.stUnit({ value: Q.unit });
   s.name = Q.name.trim(); s.sex = Q.sex; s.age = num(Q.age); s.height = Math.round(heightCm());
-  s.weeklyTarget = Q.days; s.activity = P.act; s.goalType = Q.goal === 'cut' ? 'cut' : Q.goal === 'bulk' ? 'bulk' : 'maintain';
+  s.weeklyTarget = Q.days; s.gymDays = defaultGymDays(Q.days); s.activity = P.act; s.goalType = Q.goal === 'cut' ? 'cut' : Q.goal === 'bulk' ? 'bulk' : 'maintain';
   s.goalWeight = num(Q.goalWeight) || null;
   s.goals = { cal: P.cal, p: P.p, c: P.c, f: P.f, water: P.water };
   s.onboarded = true; s.profileDone = true;

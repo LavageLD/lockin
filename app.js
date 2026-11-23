@@ -1,6 +1,6 @@
 'use strict';
 /* ===== LOCKIN — cœur de l'app ===== */
-const VERSION = '1.5.0';
+const VERSION = '1.7.0';
 const KEY = 'lockin_v1';
 
 /* ---------- utilitaires ---------- */
@@ -335,7 +335,8 @@ VIEWS.home = () => {
   const streak = weekStreak(), cons = consistency(12);
   const nx = nextRoutine();
   const T = dayTotals(dk()); const bw = latestBW(); const d7 = bwAt(7);
-  const week = DOW.map((l, i) => { const d = addDays(ws, i), k = dk(d); return `<div class="wd ${dm[k] ? 'on' : ''} ${k === dk() ? 'today' : ''}"><span>${l}</span><i>${dm[k] ? IC.check : ''}</i></div>`; }).join('');
+  const gst = gymStatuses(1);
+  const week = DOW.map((l, i) => { const d = addDays(ws, i), k = dk(d), s = gst[k]; return `<div class="wd ${dm[k] ? 'on' : ''} ${s === 'rest' || s === 'swap' ? 'rest' : ''} ${s === 'miss' ? 'miss' : ''} ${k === dk() ? 'today' : ''}"><span>${l}</span><i>${dm[k] ? IC.check : s === 'rest' || s === 'swap' ? '😴' : ''}</i></div>`; }).join('');
   return `
   <div class="hello"><div class="muted sm">${cap(dateLong(now))}</div><h1>${S.settings.name ? `Yo ${esc(S.settings.name)}` : 'Lock in.'}</h1></div>
   ${S.active ? `<button class="cta" data-a="openWorkout"><div><div class="cta-k">Séance en cours</div><div class="cta-t">${esc(S.active.name)} · <span data-elapsed>${fmtDur(Date.now() - S.active.start)}</span></div></div><span class="cta-i">${IC.play}</span></button>`
@@ -346,6 +347,7 @@ VIEWS.home = () => {
       <div class="right"><div class="big">${wc}<small>/${t}</small></div><div class="muted sm">cette semaine</div></div>
     </div>
     <div class="week">${week}</div>
+    <div class="muted sm mt8 center">Aujourd’hui : <b class="txt">${doneToday() ? '✅ séance faite' : gymDays().includes((now.getDay() + 6) % 7) ? '🏋️ jour de gym' : '😴 rest day'}</b></div>
     <div class="track mt8"><div class="fill" style="width:${Math.min(100, wc / t * 100)}%"></div></div>
   </div>
   <div class="card"><h3>Constance <span class="pill">${cons}% · 12 sem.</span></h3>${calMonthHTML()}</div>
@@ -377,16 +379,17 @@ function calMonthHTML() {
   const first = new Date(y, m, 1), days = new Date(y, m + 1, 0).getDate(), off = (first.getDay() + 6) % 7;
   const dm = dayMap(); const vols = Object.values(dm).map(d => d.vol).filter(Boolean).sort((a, b) => a - b);
   const q = p => vols.length ? vols[Math.floor((vols.length - 1) * p)] : 0;
-  let cells = '', cnt = 0;
+  let cells = '', cnt = 0; const gst = gymStatuses(Math.max(1, Math.ceil((startOfWeek(new Date()) - startOfWeek(first)) / 6048e5) + 1));
   for (let i = 0; i < off; i++) cells += '<div></div>';
   for (let d = 1; d <= days; d++) {
     const k = dk(new Date(y, m, d)), x = dm[k], nut = (S.log[k] || []).length, isT = k === dk();
     let lvl = 0; if (x) { cnt++; lvl = x.vol >= q(.75) ? 3 : x.vol >= q(.35) ? 2 : 1; }
-    cells += `<button class="cd l${lvl} ${isT ? 'today' : ''} ${k > dk() ? 'fut' : ''}" data-a="calDay" data-d="${k}">${d}${nut ? '<i></i>' : ''}</button>`;
+    const gs = gst[k] || '';
+    cells += `<button class="cd l${lvl} ${!x && (gs === 'rest' || gs === 'swap') ? 'rest' : ''} ${gs === 'miss' ? 'miss' : ''} ${isT ? 'today' : ''} ${k > dk() ? 'fut' : ''}" data-a="calDay" data-d="${k}">${d}${nut ? '<i></i>' : ''}</button>`;
   }
   return `<div class="calnav"><button class="icon sm" data-a="calPrev">‹</button><b>${cap(MONTHS[m])} ${y}</b><button class="icon sm" data-a="calNext">›</button></div>
   <div class="calgrid">${DOW.map(d => `<div class="dow">${d}</div>`).join('')}${cells}</div>
-  <div class="cal-foot muted sm"><span>${cnt} séance${cnt > 1 ? 's' : ''} ce mois</span><span class="leg"><i class="l1"></i><i class="l2"></i><i class="l3"></i> volume · <i class="dot"></i> bouffe loggée</span></div>`;
+  <div class="cal-foot muted sm"><span>${cnt} séance${cnt > 1 ? 's' : ''} ce mois</span><span class="leg"><i class="l2"></i> gym <i class="lr"></i> repos <i class="lm"></i> manqué · <i class="dot"></i> bouffe</span></div>`;
 }
 A.calPrev = () => { const b = S.ui.calMonth ? parseDk(S.ui.calMonth) : new Date(); S.ui.calMonth = dk(new Date(b.getFullYear(), b.getMonth() - 1, 1)); render(); };
 A.calNext = () => { const b = S.ui.calMonth ? parseDk(S.ui.calMonth) : new Date(); S.ui.calMonth = dk(new Date(b.getFullYear(), b.getMonth() + 1, 1)); render(); };
