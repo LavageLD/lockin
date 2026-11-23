@@ -1,6 +1,6 @@
 'use strict';
 /* ===== LOCKIN — cœur de l'app ===== */
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
 const KEY = 'lockin_v1';
 
 /* ---------- utilitaires ---------- */
@@ -706,6 +706,7 @@ function summary(wo) {
   const n = S.workouts.length, sets = wo.ex.reduce((a, e) => a + working(e.sets).length, 0);
   openSheet(() => `<div class="sum-h"><div class="sum-i">🔒</div><h2>Séance #${n} complétée</h2><p class="muted">${esc(wo.name)} · ${cap(dateLong(wo.start))}</p></div>
     <div class="grid3">${wo.end - wo.start >= 60000 ? statBox('Durée', fmtDurShort(wo.end - wo.start)) : statBox('Exercices', wo.ex.length)}${statBox('Volume', fmt(wo.vol) + ' ' + u())}${statBox('Séries', sets)}</div>
+    ${(() => { const ru = typeof rankUps === 'function' ? rankUps(wo) : []; return ru.length ? `<div class="prbox mt rankup">${ru.map(x => `<div>⬆️ Nouveau rang : <b>${RANKS[x.lvl].i} ${RANKS[x.lvl].n}</b> au ${esc(EX(x.exId).name)}</div>`).join('')}</div>` : ''; })()}
     ${wo.prs.length ? `<div class="prbox mt"><b>🏆 ${wo.prs.length} nouveau${wo.prs.length > 1 ? 'x' : ''} record${wo.prs.length > 1 ? 's' : ''}</b>${wo.prs.map(p => `<div>${esc(EX(p.exId).name)} — ${p.kind} <b>${fmt(p.val, 1)} ${u()}</b></div>`).join('')}</div>` : ''}
     <div class="muted sm mt center">Streak : ${weekStreak()} sem. · ${weekCount(startOfWeek(new Date()))}/${S.settings.weeklyTarget} cette semaine</div>
     ${!wo.routineId ? `<button class="btn block ghost mt" data-a="wToRoutine" data-id="${wo.id}">Sauvegarder comme routine</button>` : ''}

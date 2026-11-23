@@ -29,7 +29,10 @@ VIEWS.progress = () => {
   S.workouts.filter(w => w.start >= since).forEach(w => w.ex.forEach(e => { const mu = EX(e.exId).muscle; if (mu !== 'Cardio') ms[mu] = (ms[mu] || 0) + working(e.sets).length; }));
   const mx = Math.max(20, ...Object.values(ms));
   const muscleRows = Object.keys(MUSCLES).filter(m => m !== 'Cardio').map(m => { const v = ms[m] || 0; return `<div class="msrow"><span>${m}</span><div class="mstrack"><div class="msband" style="left:${10 / mx * 100}%;width:${10 / mx * 100}%"></div><div class="msfill" style="width:${v / mx * 100}%;background:${MUSCLES[m]}"></div></div><b>${v}</b></div>`; }).join('');
-  return `
+  const ptab = S.ui.progTab || 'prs';
+  const seg = `<div class="seg mb"><button class="${ptab === 'prs' ? 'on' : ''}" data-a="progTab" data-t="prs">🏆 Records & rangs</button><button class="${ptab === 'stats' ? 'on' : ''}" data-a="progTab" data-t="stats">📈 Stats</button></div>`;
+  if (ptab === 'prs') return seg + prsHTML();
+  return seg + `
   <div class="grid2">${statBox('Séances', fmt(S.workouts.length))}${statBox('Records', fmt(totPR))}${statBox('Volume total', totVol >= 1e6 ? fmt(totVol / 1e6, 2) + ' M' : fmt(totVol) + ' ' + u())}${statBox('Temps total', fmt(totTime / 36e5, 1) + ' h')}</div>
   <div class="card mt8"><h3>Progression par exercice</h3>${exBlock}</div>
   <div class="card"><h3>Séances par semaine <span class="pill">obj. ${S.settings.weeklyTarget}</span></h3><canvas id="cvWeeks" class="chart sm"></canvas></div>
@@ -39,6 +42,7 @@ VIEWS.progress = () => {
   <div class="card"><h3>Habitudes</h3>${habitsHTML()}</div>`;
 };
 POST.progress = () => {
+  if ((S.ui.progTab || 'prs') === 'prs') return;
   const id = S.ui.progEx;
   if (id) {
     const ex = EX(id); let m = S.ui.progMetric; if (ex.type !== 'w' && (m === 'e1rm' || m === 'maxW')) m = 'maxR';
@@ -68,6 +72,93 @@ function habitsHTML() {
   return `<div class="dowbars">${dows.map((v, i) => `<div><div class="dwb"><div style="height:${md ? v / md * 100 : 0}%"></div></div><small>${DOW[i]}</small></div>`).join('')}</div>
     <div class="muted sm mt8">Jour préféré : <b class="txt">${names[dows.indexOf(md)]}</b> · surtout <b class="txt">${hn[hrs.indexOf(Math.max(...hrs))]}</b> · durée moyenne <b class="txt">${fmtDurShort(dur / S.workouts.length)}</b></div>`;
 }
+
+
+/* ---------- RECORDS & RANGS ---------- */
+// Seuils (1RM estimé ÷ poids de corps, homme) : débutant, novice, intermédiaire, avancé, élite
+const STD = {
+  bench: [0.5, 0.75, 1.0, 1.5, 2.0], squat: [0.75, 1.25, 1.5, 2.25, 2.75], deadlift: [1.0, 1.5, 2.0, 2.5, 3.0],
+  ohp: [0.35, 0.55, 0.75, 1.0, 1.35], bb_row: [0.5, 0.75, 1.0, 1.5, 1.75], incline_bench: [0.5, 0.7, 0.95, 1.25, 1.6],
+  front_squat: [0.6, 0.95, 1.25, 1.65, 2.1], rdl: [0.75, 1.1, 1.5, 2.0, 2.5], hip_thrust: [0.75, 1.25, 1.75, 2.5, 3.25],
+  leg_press: [1.0, 1.75, 2.5, 3.75, 5.0], db_bench: [0.2, 0.35, 0.5, 0.75, 1.0], db_incline: [0.18, 0.3, 0.45, 0.65, 0.85],
+  db_ohp: [0.15, 0.25, 0.4, 0.55, 0.75], bb_curl: [0.2, 0.4, 0.6, 0.85, 1.15], ez_curl: [0.2, 0.4, 0.6, 0.85, 1.15],
+  db_curl: [0.1, 0.2, 0.3, 0.45, 0.6], hammer: [0.1, 0.2, 0.3, 0.45, 0.6], lat_pulldown: [0.5, 0.75, 1.0, 1.3, 1.6],
+  cable_row: [0.5, 0.75, 1.0, 1.35, 1.75], cgbp: [0.45, 0.7, 0.95, 1.35, 1.75], hack: [0.75, 1.25, 1.75, 2.5, 3.25]
+};
+// Poids du corps : rang selon les reps max
+const STD_REPS = { pullup: [1, 5, 10, 16, 23], chinup: [1, 6, 11, 17, 24], dips: [2, 8, 15, 25, 35], pushup: [5, 15, 30, 45, 60], dips_chest: [2, 8, 15, 25, 35] };
+const UPPER_F = new Set(['bench', 'ohp', 'bb_row', 'incline_bench', 'db_bench', 'db_incline', 'db_ohp', 'bb_curl', 'ez_curl', 'db_curl', 'hammer', 'lat_pulldown', 'cable_row', 'cgbp', 'pullup', 'chinup', 'dips', 'pushup', 'dips_chest']);
+const RANKS = [
+  { n: 'Fer', i: '⚙️', c: '#8E8E93' }, { n: 'Bronze', i: '🥉', c: '#C9824A' }, { n: 'Argent', i: '🥈', c: '#C0C6CF' },
+  { n: 'Or', i: '🥇', c: '#FFD60A' }, { n: 'Platine', i: '💠', c: '#64D2FF' }, { n: 'Diamant', i: '💎', c: '#BF5AF2' }, { n: 'Élite', i: '👑', c: '#C8FF2E' }
+];
+const RANK_DESC = ['Tu commences', 'Débutant', 'Novice', 'Intermédiaire', 'Avancé', 'Élite', 'Top 1 % — abusé'];
+function stdFor(exId) {
+  const f = S.settings.sex === 'f' ? (UPPER_F.has(exId) ? 0.6 : 0.72) : 1;
+  if (STD[exId]) return { kind: 'ratio', t: STD[exId].map(x => x * f) };
+  if (STD_REPS[exId]) return { kind: 'reps', t: STD_REPS[exId].map(x => Math.max(1, Math.round(x * (S.settings.sex === 'f' ? 0.45 : 1)))) };
+  return null;
+}
+function bwOn(t) { // poids de corps le plus proche de la date
+  if (!S.body.length) return null; const k = dk(t); let best = null, bd = 1e9;
+  S.body.forEach(b => { const d = Math.abs(daysBetween(parseDk(b.d), parseDk(k))); if (d < bd) { bd = d; best = b; } });
+  return best ? best.w : null;
+}
+function prOf(exId, excludeId) {
+  const ex = EX(exId); let best = null, heavy = null;
+  exSessions(exId, excludeId).forEach(h => working(h.sets).forEach(s => {
+    const w = num(s.w) || 0, r = num(s.r) || 0; if (!r) return;
+    const score = ex.type === 'w' ? e1rm(w, r) : r;
+    if (!best || score > best.score) best = { score, w, r, date: h.date };
+    if (ex.type === 'w' && (!heavy || w > heavy.w)) heavy = { w, r, date: h.date };
+  }));
+  return best ? { ...best, heavy } : null;
+}
+function rankOf(exId, pr) {
+  const sd = stdFor(exId); if (!sd || !pr) return null;
+  let val, bw = null;
+  if (sd.kind === 'ratio') { bw = bwOn(pr.date) || (latestBW() && latestBW().w); if (!bw) return { needBW: true }; val = pr.score / bw; }
+  else val = pr.score;
+  let lvl = 0; sd.t.forEach(th => { if (val >= th) lvl++; });
+  const next = lvl < sd.t.length ? sd.t[lvl] : null, prev = lvl ? sd.t[lvl - 1] : 0;
+  const prog = next ? Math.max(0, Math.min(1, (val - prev) / (next - prev))) : 1;
+  const need = next ? (sd.kind === 'ratio' ? Math.ceil(next * bw - pr.score) : Math.ceil(next - val)) : 0;
+  return { lvl, val, bw, next, prog, need, kind: sd.kind };
+}
+function plates(w) { const bar = S.settings.barWeight || (u() === 'kg' ? 20 : 45), p = u() === 'kg' ? 20 : 45; return Math.floor((w - bar) / (2 * p) + 1e-9); }
+const PLATE_EX = new Set(['bench', 'squat', 'deadlift', 'ohp', 'bb_row', 'incline_bench', 'front_squat', 'rdl', 'hip_thrust', 'cgbp', 'rack_pull']);
+function badge(lvl, big) { const R = RANKS[lvl]; return `<span class="rk ${big ? 'big' : ''}" style="--rk:${R.c}">${R.i} ${R.n}</span>`; }
+function prsHTML() {
+  const ids = [...new Set(S.workouts.flatMap(w => w.ex.map(e => e.exId)))].filter(id => EX(id).type !== 'c' && EX(id).type !== 't');
+  if (!ids.length) return `<p class="muted">Tes records vont apparaître ici après tes premières séances.</p>`;
+  const rows = ids.map(id => { const pr = prOf(id); return { id, pr, rk: rankOf(id, pr) }; }).filter(x => x.pr);
+  rows.sort((a, b) => ((b.rk && !b.rk.needBW) ? b.rk.lvl + 1 : 0) - ((a.rk && !a.rk.needBW) ? a.rk.lvl + 1 : 0) || b.pr.score - a.pr.score);
+  const ranked = rows.filter(x => x.rk && !x.rk.needBW);
+  const needBW = rows.some(x => x.rk && x.rk.needBW);
+  const glob = ranked.length ? Math.round(ranked.reduce((a, x) => a + x.rk.lvl + x.rk.prog * (x.rk.next ? 1 : 0), 0) / ranked.length - 0.49) : null;
+  return `${glob != null ? `<div class="rkglobal" style="--rk:${RANKS[Math.max(0, glob)].c}"><div class="rk-i">${RANKS[Math.max(0, glob)].i}</div><div><small>Rang global</small><b>${RANKS[Math.max(0, glob)].n}</b><div class="muted sm">${RANK_DESC[Math.max(0, glob)]} · moyenne de ${ranked.length} exercice${ranked.length > 1 ? 's' : ''}</div></div></div>` : ''}
+    ${needBW ? `<div class="pastbar">⚖️ Entre ton poids dans Corps pour voir tes rangs selon ton poids de corps</div>` : ''}
+    ${rows.map(({ id, pr, rk }) => {
+      const ex = EX(id), isW = ex.type === 'w';
+      const best = isW ? `${fmt(pr.w, 1)} ${u()} × ${pr.r}` : `${pr.r} reps${pr.w ? ' (+' + fmt(pr.w, 1) + ')' : ''}`;
+      const pl = isW && PLATE_EX.has(id) && pr.heavy ? plates(pr.heavy.w) : 0;
+      return `<button class="prcard" data-a="exInfo" data-ex="${id}">
+        <div class="row between"><b class="grow">${esc(ex.name)}</b>${rk && !rk.needBW ? badge(rk.lvl) : ''}</div>
+        <div class="prline"><span class="prbig">${isW ? fmt(Math.round(pr.score)) + '<small> ' + u() + '</small>' : pr.r + '<small> reps</small>'}</span>
+          <span class="muted sm">${isW ? '1RM estimé · meilleure série ' + best : 'max en une série'} · ${shortDate(pr.date)}</span></div>
+        <div class="prtags">${rk && !rk.needBW && rk.kind === 'ratio' ? `<span class="tag">×${fmt(rk.val, 2)} ton poids (${fmt(rk.bw, 1)} ${u()})</span>` : ''}${pr.heavy && pr.heavy.w !== pr.w ? `<span class="tag">Plus lourd : ${fmt(pr.heavy.w, 1)} × ${pr.heavy.r}</span>` : ''}${pl >= 1 ? `<span class="tag tag-plate">🍽️ ${pl} plate${pl > 1 ? 's' : ''}</span>` : ''}</div>
+        ${rk && !rk.needBW ? `<div class="track mt8"><div class="fill" style="width:${rk.prog * 100}%;background:${RANKS[Math.min(6, rk.lvl + (rk.next ? 1 : 0))].c}"></div></div>
+          <div class="muted sm mt8">${rk.next ? `Encore <b class="txt">${rk.kind === 'ratio' ? fmt(rk.need) + ' ' + u() + ' au 1RM' : rk.need + ' rep' + (rk.need > 1 ? 's' : '')}</b> pour ${RANKS[rk.lvl + 1].i} ${RANKS[rk.lvl + 1].n}` : 'Rang max atteint 👑'}</div>` : ''}
+      </button>`;
+    }).join('')}
+    <p class="muted sm mt8">Rangs basés sur des standards de force (1RM estimé ÷ ton poids de corps le jour du record${S.settings.sex === 'f' ? ', ajustés pour femme' : ''}). Fer → Bronze → Argent → Or → Platine → Diamant → Élite.</p>`;
+}
+function rankUps(wo) {
+  const out = [];
+  wo.ex.forEach(e => { const before = rankOf(e.exId, prOf(e.exId, wo.id)), after = rankOf(e.exId, prOf(e.exId)); if (after && !after.needBW && (!before || before.needBW ? after.lvl > 0 : after.lvl > before.lvl)) out.push({ exId: e.exId, lvl: after.lvl }); });
+  return out;
+}
+A.progTab = el => { S.ui.progTab = el.dataset.t; save(); render(); };
 
 /* ---------- NUTRITION ---------- */
 const MEALS = ['Déjeuner', 'Dîner', 'Souper', 'Collations'];

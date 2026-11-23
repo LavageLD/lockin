@@ -406,3 +406,16 @@ details summary{cursor:pointer;padding:4px 0}
 .cafrow{display:flex;gap:6px;align-items:center;margin-bottom:6px}
 .cafrow input{flex:1;min-width:0}
 .cafrow input.mg{flex:0 0 72px;text-align:center;font-weight:700}
+/* records & rangs */
+.rk{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:800;padding:4px 10px;border-radius:99px;color:var(--rk);background:color-mix(in srgb,var(--rk) 16%,transparent);border:1px solid color-mix(in srgb,var(--rk) 40%,transparent);white-space:nowrap}
+.rkglobal{display:flex;gap:14px;align-items:center;padding:16px;border-radius:20px;margin-bottom:12px;background:linear-gradient(135deg,color-mix(in srgb,var(--rk) 22%,var(--card)),var(--card));border:1px solid color-mix(in srgb,var(--rk) 45%,transparent)}
+.rk-i{font-size:44px}
+.rkglobal small{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute);font-weight:700}
+.rkglobal b{display:block;font-size:26px;font-weight:800;color:var(--rk);line-height:1.1}
+.prcard{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:10px}
+.prline{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:6px}
+.prbig{font-size:28px;font-weight:800;letter-spacing:-.03em}
+.prbig small{font-size:14px;color:var(--mute)}
+.prtags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.tag{font-size:12px;font-weight:700;padding:4px 9px;border-radius:9px;background:var(--card2);color:var(--text)}
+.tag-plate{background:rgba(255,69,58,.14);color:#ff8a82}
