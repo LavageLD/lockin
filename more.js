@@ -76,7 +76,8 @@ VIEWS.nutrition = () => {
   const k = S.ui.nutDate || dk(), T = dayTotals(k), g = S.settings.goals, L = S.log[k] || [], left = g.cal - T.cal, wml = S.water[k] || 0;
   const label = k === dk() ? "Aujourd'hui" : k === dk(addDays(new Date(), -1)) ? 'Hier' : cap(dateLong(parseDk(k)));
   return `
-  <div class="datenav"><button class="icon" data-a="nutDay" data-d="-1">‹</button><b>${label}</b><button class="icon" data-a="nutDay" data-d="1" ${k >= dk() ? 'disabled' : ''}>›</button></div>
+  <div class="datenav"><button class="icon" data-a="nutDay" data-d="-1">‹</button><label class="datepick"><b>${label} 📅</b><input type="date" data-i="nutPick" value="${k}" max="${dk()}"></label><button class="icon" data-a="nutDay" data-d="1" ${k >= dk() ? 'disabled' : ''}>›</button></div>
+  ${k !== dk() ? `<div class="pastbar">✏️ Tu modifies une journée passée <button class="link" data-a="nutToday">Revenir à aujourd’hui</button></div>` : ''}
   <div class="card nutsum">
     <div class="ringwrap">${ring(T.cal / g.cal, 132, 12)}<div class="ringtxt"><b>${fmt(Math.abs(left))}</b><span>${left >= 0 ? 'cal restantes' : 'cal de trop'}</span></div></div>
     <div class="macros">${bar('Protéines', T.p, g.p, '#FF6B57')}${bar('Glucides', T.c, g.c, '#4DA3FF')}${bar('Lipides', T.f, g.f, '#FFB020')}<div class="muted sm">${fmt(T.cal)} / ${fmt(g.cal)} cal</div></div>
@@ -84,6 +85,7 @@ VIEWS.nutrition = () => {
   ${MEALS.map(m => { const it = L.filter(x => x.meal === m), mc = it.reduce((a, x) => a + x.cal * x.q, 0); return `<div class="card meal"><h3>${m} <span class="muted">${fmt(mc)} cal</span></h3>
     ${it.map(x => `<button class="li tap fi" data-a="editFood" data-id="${x.id}"><div class="grow"><b>${esc(x.name)}</b><div class="muted sm">${x.q !== 1 ? fmt(x.q, 2) + ' × ' : ''}${esc(x.serv || 'portion')} · P ${fmt(x.p * x.q)} G ${fmt(x.c * x.q)} L ${fmt(x.f * x.q)}</div></div><b>${fmt(x.cal * x.q)}</b></button>`).join('')}
     <button class="btn sm ghost block" data-a="addFood" data-m="${m}">+ Ajouter</button></div>`; }).join('')}
+  <div class="card"><h3>Suppléments <button class="link" data-a="suppManage">Gérer</button></h3>${suppHTML(k)}</div>
   <div class="card"><h3>Eau <span class="muted">${fmt(wml / 1000, 2)} / ${fmt(g.water / 1000, 1)} L</span></h3>
     <div class="water">${Array.from({ length: 8 }, (_, i) => `<span class="${wml >= (i + 1) * g.water / 8 ? 'on' : ''}">💧</span>`).join('')}</div>
     <div class="row gap mt8"><button class="btn sm ghost" data-a="water" data-v="-250">−250</button><button class="btn sm ghost grow" data-a="water" data-v="250">+250 ml</button><button class="btn sm ghost grow" data-a="water" data-v="500">+500 ml</button></div></div>
@@ -100,6 +102,8 @@ POST.nutrition = () => {
   barChart($('#cvNut'), it, { goal: S.settings.goals.cal });
 };
 A.nutDay = el => { const k = S.ui.nutDate || dk(); const n = dk(addDays(parseDk(k), +el.dataset.d)); if (n > dk()) return; S.ui.nutDate = n === dk() ? null : n; render(); };
+C.nutPick = el => { const v = el.value; if (!v) return; S.ui.nutDate = v >= dk() ? null : v; render(); };
+A.nutToday = () => { S.ui.nutDate = null; render(); };
 A.water = el => { const k = S.ui.nutDate || dk(); S.water[k] = Math.max(0, (S.water[k] || 0) + (+el.dataset.v)); save(); render(); };
 A.copyDay = () => { const k = S.ui.nutDate || dk(), y = dk(addDays(parseDk(k), -1)), L = S.log[y] || []; if (!L.length) return toast('Rien de loggé la veille'); S.log[k] = [...(S.log[k] || []), ...L.map(x => ({ ...x, id: uid() }))]; save(); render(); toast(`${L.length} aliments copiés`); };
 
@@ -300,6 +304,8 @@ A.settings = () => openSheet(() => {
   const s = S.settings;
   return `<h2 class="sh-t">Réglages</h2>
   ${accountHTML()}
+  ${notifHTML()}
+  <h3 class="mt">Profil</h3>
   <button class="li tap" data-a="redoQuiz">🎯 Mon profil & mon plan<span class="grow"></span><span class="chev">›</span></button>
   <label class="fl mt8">Ton nom<input data-i="stName" value="${esc(s.name)}" placeholder="Prénom"></label>
   <div class="grid2">
@@ -358,3 +364,22 @@ C.importIn = el => {
 };
 A.resetAll = () => confirmSheet('Tout effacer?', 'Séances, nutrition, pesées, photos... tout part. Exporte avant si tu veux garder une copie.', 'Tout effacer', async () => { for (const p of S.photos) await IDB.del(p.id).catch(() => { }); localStorage.removeItem(KEY); S = defaultState(); rebuildEx(); saveNow(); closeAllSheets(); render(); openWelcome(); });
 
+
+/* ---------- SUPPLÉMENTS ---------- */
+function suppHTML(k) {
+  const taken = (S.suppLog || {})[k] || [];
+  if (!S.supps.length) return `<p class="muted sm">Aucun supplément. <button class="link" data-a="suppManage">+ Ajouter</button></p>`;
+  return `<div class="supps">${S.supps.map(s => { const on = taken.includes(s.id); return `<button class="supp ${on ? 'on' : ''}" data-a="suppTog" data-id="${s.id}" data-d="${k}"><span class="ck">${on ? IC.check : ''}</span><div class="grow"><b>${esc(s.name)}</b>${s.dose ? `<small>${esc(s.dose)}</small>` : ''}</div>${s.hour != null && !on ? `<small class="muted">🔔 ${s.hour} h</small>` : ''}</button>`; }).join('')}</div>`;
+}
+A.suppTog = el => { const k = el.dataset.d, id = el.dataset.id; S.suppLog = S.suppLog || {}; const L = S.suppLog[k] = S.suppLog[k] || []; L.includes(id) ? L.splice(L.indexOf(id), 1) : L.push(id); save(); render(); if (L.includes(id)) toast('Coché ✅', 1000); };
+let SPN = { name: '', dose: '' };
+A.suppManage = () => openSheet(() => `<h2 class="sh-t">Suppléments</h2><p class="muted sm mb">Choisis l’heure du rappel : si c’est pas coché à cette heure-là, tu reçois une notif (et une 2e à 21 h).</p>
+  ${S.supps.map((s, i) => `<div class="re-row"><div class="grow"><b>${esc(s.name)}</b><div class="muted sm">${esc(s.dose || '')}</div>
+    <label class="fl mt8">Rappel<select data-i="suppHour" data-n="${i}"><option value="">Aucun rappel</option>${Array.from({ length: 15 }, (_, h) => h + 7).map(h => `<option value="${h}" ${s.hour === h ? 'selected' : ''}>${h} h</option>`).join('')}</select></label></div>
+    <button class="icon sm red" data-a="suppDel" data-n="${i}">${IC.x}</button></div>`).join('')}
+  <h3 class="mt">Ajouter</h3><div class="grid2"><label class="fl">Nom<input data-i="spn" data-k="name" value="${esc(SPN.name)}" placeholder="ex. Vitamine D"></label><label class="fl">Dose<input data-i="spn" data-k="dose" value="${esc(SPN.dose)}" placeholder="ex. 1000 UI"></label></div>
+  <button class="btn block" data-a="suppAdd">+ Ajouter</button><button class="btn block acc mt8" data-a="closeSheet">OK</button>`, { onClose: () => render() });
+C.suppHour = el => { const s = S.supps[+el.dataset.n]; s.hour = el.value === '' ? null : +el.value; save(); };
+I.spn = el => SPN[el.dataset.k] = el.value;
+A.suppAdd = () => { if (!SPN.name.trim()) return toast('Entre un nom'); S.supps.push({ id: 's_' + uid(), name: SPN.name.trim(), dose: SPN.dose.trim(), hour: null }); SPN = { name: '', dose: '' }; save(); paintSheet(); };
+A.suppDel = el => { S.supps.splice(+el.dataset.n, 1); save(); paintSheet(); };

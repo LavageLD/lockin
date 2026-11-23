@@ -1,6 +1,6 @@
 'use strict';
 /* ===== LOCKIN — cœur de l'app ===== */
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const KEY = 'lockin_v1';
 
 /* ---------- utilitaires ---------- */
@@ -24,6 +24,7 @@ const DOW = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 const dateLong = d => new Date(d).toLocaleDateString('fr-CA', { weekday: 'long', day: 'numeric', month: 'long' });
 const shortDate = d => new Date(d).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short' });
 const fmtDur = ms => { const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; };
+const durTxt = w => { const d = (w.end || w.start) - w.start; return d >= 60000 ? fmtDurShort(d) + ' · ' : ''; };
 const fmtDurShort = ms => { const m = Math.round(ms / 60000); return m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : `${m} min`; };
 const hexA = (hex, a) => { const h = hex.replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; };
 const e1rm = (w, r) => (!w || !r) ? 0 : r === 1 ? w : w * (1 + Math.min(r, 15) / 30);
@@ -40,6 +41,7 @@ function defaultState() {
     },
     exercises: [], routines: presetPack('ppl'), workouts: [],
     body: [], meas: [], photos: [], foods: [], log: {}, water: {},
+    supps: [{ id: 'creatine', name: 'Créatine', dose: '5 g', hour: 20 }], suppLog: {}, pushCfg: null,
     active: null,
     ui: { tab: 'home', calMonth: null, nutDate: null, progEx: null, progMetric: 'e1rm', bwRange: 90, measKey: 'waist' }
   };
@@ -327,7 +329,7 @@ VIEWS.home = () => {
   return `
   <div class="hello"><div class="muted sm">${cap(dateLong(now))}</div><h1>${S.settings.name ? `Yo ${esc(S.settings.name)}` : 'Lock in.'}</h1></div>
   ${S.active ? `<button class="cta" data-a="openWorkout"><div><div class="cta-k">Séance en cours</div><div class="cta-t">${esc(S.active.name)} · <span data-elapsed>${fmtDur(Date.now() - S.active.start)}</span></div></div><span class="cta-i">${IC.play}</span></button>`
-      : `<button class="cta" data-a="quickStart"><div><div class="cta-k">${nx ? 'Prochaine séance' : 'Commencer'}</div><div class="cta-t">${nx ? esc(nx.name) : 'Séance vide'}</div></div><span class="cta-i">${IC.play}</span></button>`}
+      : `${doneToday() ? `<button class="cta done" data-a="woDetail" data-id="${doneToday().id}"><div><div class="cta-k">Séance d’aujourd’hui ✅</div><div class="cta-t">${esc(doneToday().name)}</div></div><span class="cta-i">${IC.check}</span></button>` : `<button class="cta" data-a="quickStart"><div><div class="cta-k">${nx ? 'Prochaine séance · tape pour cocher' : 'Cocher une séance'}</div><div class="cta-t">${nx ? esc(nx.name) : 'Séance'}</div></div><span class="cta-i">${IC.check}</span></button>`}`}
   <div class="card streak">
     <div class="streak-top">
       <div><div class="big">${streak}<small> sem.</small></div><div class="muted sm">streak d'objectif hebdo ${IC.fire}</div></div>
@@ -350,6 +352,7 @@ VIEWS.home = () => {
       <canvas id="cvHomeBW" class="spark"></canvas>
     </div>
   </div>
+  ${S.supps && S.supps.length ? `<div class="card"><h3>Suppléments aujourd’hui <button class="link" data-a="suppManage">Gérer</button></h3>${suppHTML(dk())}</div>` : ''}
   <div class="card"><h3>Coach</h3>${insights().map(x => `<div class="ins"><span class="ins-i">${x.i}</span><div><b>${esc(x.t)}</b><div class="muted sm">${esc(x.s)}</div></div></div>`).join('')}</div>
   <div class="card"><h3>Récupération musculaire</h3>${recoveryHTML()}</div>`;
 };
@@ -380,11 +383,12 @@ A.calNext = () => { const b = S.ui.calMonth ? parseDk(S.ui.calMonth) : new Date(
 A.calDay = el => {
   const k = el.dataset.d, ws = S.workouts.filter(w => dk(w.start) === k), T = dayTotals(k), b = S.body.find(x => x.d === k);
   openSheet(() => `<h2 class="sh-t">${cap(dateLong(parseDk(k)))}</h2>
-    ${ws.length ? ws.map(w => `<button class="li tap" data-a="woDetail" data-id="${w.id}"><div><b>${esc(w.name)}</b><div class="muted sm">${fmtDurShort((w.end || w.start) - w.start)} · ${w.ex.length} exos · ${fmt(w.vol)} ${u()}${w.prs?.length ? ` · 🏆 ${w.prs.length}` : ''}</div></div><span class="chev">›</span></button>`).join('') : `<p class="muted mb">Pas de séance ce jour-là.</p>`}
+    ${ws.length ? ws.map(w => `<button class="li tap" data-a="woDetail" data-id="${w.id}"><div><b>${esc(w.name)}</b><div class="muted sm">${durTxt(w)}${w.ex.length} exos · ${fmt(w.vol)} ${u()}${w.prs?.length ? ` · 🏆 ${w.prs.length}` : ''}</div></div><span class="chev">›</span></button>`).join('') : `<p class="muted mb">Pas de séance ce jour-là.</p>`}
     <div class="grid3 mt">${statBox('Calories', fmt(T.cal))}${statBox('Protéines', fmt(T.p) + ' g')}${statBox('Poids', b ? fmt(b.w, 1) + ' ' + u() : '–')}</div>
-    ${!ws.length && k <= dk() ? `<button class="btn block ghost mt" data-a="logPast" data-d="${k}">+ Ajouter une séance passée ce jour-là</button>` : ''}`);
+    ${k <= dk() ? `<div class="grid2 mt"><button class="btn" data-a="logPast" data-d="${k}">🏋️ + Séance</button><button class="btn" data-a="dayFood" data-d="${k}">🍽️ Bouffe & eau</button></div>` : ''}`);
 };
-A.logPast = el => { const k = el.dataset.d; closeAllSheets(); startWorkout(null, null, parseDk(k).getTime() + 18 * 36e5); };
+A.logPast = el => { const k = el.dataset.d; closeAllSheets(); quickLog({ date: k }); };
+A.dayFood = el => { S.ui.nutDate = el.dataset.d === dk() ? null : el.dataset.d; S.ui.tab = 'nutrition'; closeAllSheets(); render(); window.scrollTo(0, 0); };
 const statBox = (l, v) => `<div class="stat"><div class="stat-v">${v}</div><div class="stat-l">${l}</div></div>`;
 
 function insights() {
@@ -435,7 +439,7 @@ function recoveryHTML() {
   }).join('')}</div><div class="muted sm mt8"><span class="lg rec"></span>en récup · <span class="lg ready"></span>prêt · <span class="lg due"></span>à entraîner</div>`;
 }
 
-A.quickStart = () => { const nx = nextRoutine(); startWorkout(nx ? nx.id : null); };
+A.quickStart = () => { const nx = nextRoutine(); quickLog({ routineId: nx ? nx.id : null }); };
 
 /* ---------- ENTRAÎNEMENT ---------- */
 VIEWS.train = () => {
@@ -444,14 +448,14 @@ VIEWS.train = () => {
   let curM = '';
   return `
   <div class="grid2">
-    <button class="tile acc" data-a="startEmpty"><span>${IC.plus}</span><b>Séance vide</b></button>
+    <button class="tile acc" data-a="startEmpty"><span>${IC.check}</span><b>Cocher une séance</b><small style="color:inherit;opacity:.7">perso ou d’une routine</small></button>
     <button class="tile" data-a="openCoach"><span>${IC.cam}</span><b>Coach caméra</b><small>forme + reps par IA</small></button>
   </div>
   <h3 class="sec">Mes routines <button class="link" data-a="newRoutine">+ Nouvelle</button></h3>
   ${S.routines.length ? S.routines.map(r => `<div class="card routine">
     <div class="r-top"><div><b>${esc(r.name)}</b><div class="muted sm">${r.ex.length} exos · ${lastBy[r.id] ? 'fait ' + relDay(lastBy[r.id]) : 'jamais fait'}</div></div><button class="icon" data-a="editRoutine" data-id="${r.id}">${IC.dots}</button></div>
     <div class="r-ex muted sm">${r.ex.map(e => esc(EX(e.exId).name)).join(' · ')}</div>
-    <button class="btn block acc mt8" data-a="startRoutine" data-id="${r.id}">Démarrer</button></div>`).join('') : `<p class="muted">Aucune routine. Crée-en une ou ajoute un programme ci-dessous.</p>`}
+    <div class="row gap mt8"><button class="btn acc grow" data-a="startRoutine" data-id="${r.id}">✓ Cocher comme faite</button><button class="btn ghost" data-a="startLive" data-id="${r.id}" title="Mode live avec chrono">⏱️</button></div></div>`).join('') : `<p class="muted">Aucune routine. Crée-en une ou ajoute un programme ci-dessous.</p>`}
   <h3 class="sec">Programmes prêts</h3>
   <div class="hscroll">${PACKS.map(([k, n, d]) => `<button class="pack" data-a="addPack" data-k="${k}"><b>${n}</b><span class="muted sm">${d}</span><span class="pack-add">+ Ajouter</span></button>`).join('')}</div>
   <h3 class="sec">Outils</h3>
@@ -461,12 +465,13 @@ VIEWS.train = () => {
     <button class="tool" data-a="library">📚<span>Exercices</span></button>
   </div>
   <h3 class="sec">Historique <span class="muted sm">${S.workouts.length} séances</span></h3>
-  ${hist.length ? hist.map(w => { const m = cap(MONTHS[new Date(w.start).getMonth()]) + ' ' + new Date(w.start).getFullYear(); const hd = m !== curM ? `<div class="month-h">${m}</div>` : ''; curM = m; return hd + `<button class="li tap" data-a="woDetail" data-id="${w.id}"><div class="li-d"><b>${new Date(w.start).getDate()}</b><small>${new Date(w.start).toLocaleDateString('fr-CA', { weekday: 'short' })}</small></div><div class="grow"><b>${esc(w.name)}</b><div class="muted sm">${fmtDurShort((w.end || w.start) - w.start)} · ${fmt(w.vol)} ${u()} · ${w.ex.length} exos${w.prs?.length ? ` · 🏆 ${w.prs.length}` : ''}</div></div><span class="chev">›</span></button>`; }).join('') : `<p class="muted">Tes séances vont apparaître ici.</p>`}`;
+  ${hist.length ? hist.map(w => { const m = cap(MONTHS[new Date(w.start).getMonth()]) + ' ' + new Date(w.start).getFullYear(); const hd = m !== curM ? `<div class="month-h">${m}</div>` : ''; curM = m; return hd + `<button class="li tap" data-a="woDetail" data-id="${w.id}"><div class="li-d"><b>${new Date(w.start).getDate()}</b><small>${new Date(w.start).toLocaleDateString('fr-CA', { weekday: 'short' })}</small></div><div class="grow"><b>${esc(w.name)}</b><div class="muted sm">${durTxt(w)}${fmt(w.vol)} ${u()} · ${w.ex.length} exos${w.prs?.length ? ` · 🏆 ${w.prs.length}` : ''}</div></div><span class="chev">›</span></button>`; }).join('') : `<p class="muted">Tes séances vont apparaître ici.</p>`}`;
 };
 const relDay = t => { const d = daysBetween(t, Date.now()); return d === 0 ? "aujourd'hui" : d === 1 ? 'hier' : `il y a ${d} j`; };
 
-A.startEmpty = () => startWorkout(null);
-A.startRoutine = el => startWorkout(el.dataset.id);
+A.startEmpty = () => quickLog({});
+A.startRoutine = el => quickLog({ routineId: el.dataset.id });
+A.startLive = el => startWorkout(el.dataset.id);
 A.addPack = el => { const rs = presetPack(el.dataset.k); S.routines.push(...rs); save(); render(); toast(`${rs.length} routines ajoutées`); };
 
 /* éditeur de routine */
@@ -690,7 +695,7 @@ A.woFinish = () => {
 function summary(wo) {
   const n = S.workouts.length, sets = wo.ex.reduce((a, e) => a + working(e.sets).length, 0);
   openSheet(() => `<div class="sum-h"><div class="sum-i">🔒</div><h2>Séance #${n} complétée</h2><p class="muted">${esc(wo.name)} · ${cap(dateLong(wo.start))}</p></div>
-    <div class="grid3">${statBox('Durée', fmtDurShort(wo.end - wo.start))}${statBox('Volume', fmt(wo.vol) + ' ' + u())}${statBox('Séries', sets)}</div>
+    <div class="grid3">${wo.end - wo.start >= 60000 ? statBox('Durée', fmtDurShort(wo.end - wo.start)) : statBox('Exercices', wo.ex.length)}${statBox('Volume', fmt(wo.vol) + ' ' + u())}${statBox('Séries', sets)}</div>
     ${wo.prs.length ? `<div class="prbox mt"><b>🏆 ${wo.prs.length} nouveau${wo.prs.length > 1 ? 'x' : ''} record${wo.prs.length > 1 ? 's' : ''}</b>${wo.prs.map(p => `<div>${esc(EX(p.exId).name)} — ${p.kind} <b>${fmt(p.val, 1)} ${u()}</b></div>`).join('')}</div>` : ''}
     <div class="muted sm mt center">Streak : ${weekStreak()} sem. · ${weekCount(startOfWeek(new Date()))}/${S.settings.weeklyTarget} cette semaine</div>
     ${!wo.routineId ? `<button class="btn block ghost mt" data-a="wToRoutine" data-id="${wo.id}">Sauvegarder comme routine</button>` : ''}
@@ -698,14 +703,15 @@ function summary(wo) {
 }
 function workoutDetail(id) {
   const w = S.workouts.find(x => x.id === id); if (!w) return;
-  openSheet(() => `<h2 class="sh-t">${esc(w.name)}</h2><div class="muted mb">${cap(dateLong(w.start))} · ${fmtDurShort((w.end || w.start) - w.start)} · ${fmt(w.vol)} ${u()}</div>
+  openSheet(() => `<h2 class="sh-t">${esc(w.name)}</h2><div class="muted mb">${cap(dateLong(w.start))} · ${durTxt(w)}${fmt(w.vol)} ${u()}</div>
     ${w.prs?.length ? `<div class="prbox">${w.prs.map(p => `<div>🏆 ${esc(EX(p.exId).name)} — ${p.kind} <b>${fmt(p.val, 1)}</b></div>`).join('')}</div>` : ''}
     ${w.ex.map(e => { const t = EX(e.exId).type; let n = 0; return `<div class="detex"><b>${esc(EX(e.exId).name)}</b>${e.note ? `<div class="muted sm">📝 ${esc(e.note)}</div>` : ''}${e.sets.map(s => { if (s.t !== 'w') n++; return `<div class="detset"><span class="setn sm t-${s.t}">${s.t === 'w' ? 'É' : s.t === 'd' ? 'D' : s.t === 'f' ? 'F' : n}</span><span>${setStr(s, t)}</span><span class="muted sm">${s.rpe ? 'RPE ' + s.rpe : ''}${t === 'w' && s.t !== 'w' ? ' · 1RM ' + fmt(e1rm(s.w, s.r)) : ''}</span></div>`; }).join('')}</div>`; }).join('')}
     ${w.note ? `<div class="exnote mt">📝 ${esc(w.note)}</div>` : ''}
-    <div class="grid3 mt"><button class="btn" data-a="repeatW" data-id="${w.id}">Refaire</button><button class="btn ghost" data-a="wToRoutine" data-id="${w.id}">→ Routine</button><button class="btn danger-ghost" data-a="delW" data-id="${w.id}">Supprimer</button></div>`, { full: true });
+    <button class="btn block acc mt" data-a="editW" data-id="${w.id}">✏️ Modifier</button><div class="grid3 mt8"><button class="btn" data-a="repeatW" data-id="${w.id}">Refaire</button><button class="btn ghost" data-a="wToRoutine" data-id="${w.id}">→ Routine</button><button class="btn danger-ghost" data-a="delW" data-id="${w.id}">Supprimer</button></div>`, { full: true });
 }
 A.woDetail = el => workoutDetail(el.dataset.id);
-A.repeatW = el => { const w = S.workouts.find(x => x.id === el.dataset.id); closeAllSheets(); startWorkout(null, w); };
+A.repeatW = el => { const w = S.workouts.find(x => x.id === el.dataset.id); closeAllSheets(); quickLog({ from: w }); };
+A.editW = el => { const id = el.dataset.id; closeAllSheets(); quickLog({ wid: id }); };
 A.wToRoutine = el => { const w = S.workouts.find(x => x.id === el.dataset.id); const r = { id: uid(), name: w.name, ex: w.ex.map(e => ({ exId: e.exId, sets: working(e.sets).length || e.sets.length, reps: '8-12', rest: null })) }; S.routines.push(r); w.routineId = r.id; save(); closeAllSheets(); render(); toast('Routine créée'); };
 A.delW = el => confirmSheet('Supprimer la séance?', 'C’est définitif.', 'Supprimer', () => { S.workouts = S.workouts.filter(x => x.id !== el.dataset.id); save(); closeAllSheets(); render(); });
 
@@ -788,6 +794,86 @@ A.openCoach = async () => {
       onClose: () => { if (S.active && $('#wo').classList.contains('open')) renderWorkout(); else render(); }
     });
   } catch (e) { console.error(e); toast('Impossible de charger le coach (connexion?)'); }
+};
+
+/* ---------- SÉANCE EN UN TAP (sans chrono) ---------- */
+function doneToday() { const k = dk(); for (let i = S.workouts.length - 1; i >= 0; i--) if (dk(S.workouts[i].start) === k) return S.workouts[i]; return null; }
+let QL = null;
+function prefillSets(exId, n, reps) {
+  const ex = EX(exId), sug = suggest(exId, reps), last = working(lastSets(exId)), rng = parseRange(reps);
+  return Array.from({ length: Math.max(1, +n || 3) }, (_, j) => {
+    const p = last[j] || last[last.length - 1];
+    let w = sug && sug.kind !== 'rep' ? sug.w : p ? p.w : '';
+    let r = sug ? sug.r : p ? p.r : (rng ? rng[1] : '');
+    if (ex.type === 'c') { w = p ? p.w : ''; r = p ? p.r : ''; }
+    return { w: w === 0 && ex.type !== 'w' ? '' : (w ?? ''), r: r ?? '', t: 'n' };
+  });
+}
+function quickLog({ routineId = null, from = null, wid = null, date = null } = {}) {
+  const r = routineId ? S.routines.find(x => x.id === routineId) : null;
+  const ed = wid ? S.workouts.find(w => w.id === wid) : null;
+  let ex = [];
+  if (ed) ex = ed.ex.map(e => ({ exId: e.exId, on: true, note: e.note || '', sets: e.sets.map(s => ({ w: s.w || '', r: s.r || '', t: s.t || 'n' })) }));
+  else if (from) ex = from.ex.map(e => ({ exId: e.exId, on: true, note: '', sets: e.sets.map(s => ({ w: s.w || '', r: s.r || '', t: s.t || 'n' })) }));
+  else if (r) ex = r.ex.map(e => ({ exId: e.exId, on: true, note: '', reps: e.reps, sets: prefillSets(e.exId, e.sets, e.reps) }));
+  QL = { wid, routineId: r ? r.id : ed ? ed.routineId : from ? from.routineId : null, name: ed ? ed.name : r ? r.name : from ? from.name : 'Séance', date: ed ? dk(ed.start) : (date || dk()), ex, note: ed ? ed.note || '' : '', open: null };
+  openSheet(qlRender, { full: true });
+}
+function qlRender() {
+  const today = dk();
+  return `<div class="row between"><h2 class="sh-t">${QL.wid ? 'Modifier la séance' : 'Cocher une séance'}</h2></div>
+    <input class="title-in" data-i="qlName" value="${esc(QL.name)}" placeholder="Nom de la séance">
+    <label class="fl">Date<input type="date" data-i="qlDate" value="${QL.date}" max="${today}"></label>
+    ${!QL.ex.length && S.routines.length ? `<div class="muted sm mb">Charger une routine :</div><div class="chips mb">${S.routines.map(r => `<button class="chip" data-a="qlLoad" data-id="${r.id}">${esc(r.name)}</button>`).join('')}</div>` : ''}
+    ${QL.ex.length ? `<p class="muted sm mb">Les poids et reps sont pré-remplis selon ta dernière fois et ta progression. Change juste ce qui est différent, pis enregistre.</p>` : ''}
+    ${QL.ex.map((e, i) => { const x = EX(e.exId), cols = COLS[x.type]; const s0 = e.sets[0] || {}; const same = e.sets.every(s => String(s.w) === String(s0.w) && String(s.r) === String(s0.r));
+      const noW = x.type === 'w' && e.sets.every(s => !num(s.w));
+      const summ = noW ? `<span class="warn">${e.sets.length} × ${s0.r || '?'} · poids à entrer</span>` : x.type === 'c' ? e.sets.map(s => setStr({ w: num(s.w), r: num(s.r) }, 'c')).join(' · ') : same ? `${e.sets.length} × ${s0.r || '?'}${x.type === 't' ? ' s' : ''}${num(s0.w) ? ' @ ' + fmt(num(s0.w), 1) + (x.type === 'w' ? ' ' + u() : '') : ''}` : e.sets.map(s => setStr({ w: num(s.w), r: num(s.r) }, x.type)).join(' · ');
+      return `<div class="qlex ${e.on ? '' : 'off'}">
+        <div class="qlhead"><button class="qlck ${e.on ? 'on' : ''}" data-a="qlTog" data-n="${i}">${IC.check}</button>
+          <button class="grow qlname" data-a="qlOpen" data-n="${i}"><b>${esc(x.name)}</b><div class="muted sm">${summ}</div></button>
+          <button class="icon sm" data-a="qlOpen" data-n="${i}">${QL.open === i ? '▴' : '✏️'}</button></div>
+        ${QL.open === i ? `<div class="qlsets">${e.sets.map((s, j) => `<div class="qlset"><span class="muted">${j + 1}</span><input inputmode="decimal" data-i="qlSet" data-n="${i}" data-j="${j}" data-f="w" value="${esc(s.w)}" placeholder="${cols[0]}"><span class="muted sm">${x.type === 'w' ? u() : cols[0]}</span><span>×</span><input inputmode="decimal" data-i="qlSet" data-n="${i}" data-j="${j}" data-f="r" value="${esc(s.r)}" placeholder="${cols[1]}"><span class="muted sm">${cols[1].toLowerCase()}</span></div>`).join('')}
+          <div class="row gap mt8"><button class="btn sm ghost grow" data-a="qlAddSet" data-n="${i}">+ Série</button><button class="btn sm ghost" data-a="qlRmSet" data-n="${i}">− Série</button><button class="btn sm danger-ghost" data-a="qlDel" data-n="${i}">Retirer</button></div></div>` : ''}
+      </div>`; }).join('')}
+    <button class="btn block ghost mt8" data-a="qlAdd">+ Ajouter un exercice</button>
+    <label class="fl mt">Note <span class="muted">— optionnel</span><textarea data-i="qlNote" rows="2" placeholder="Énergie, sommeil...">${esc(QL.note)}</textarea></label>
+    <div class="sticky-bottom"><button class="btn block acc big-btn" data-a="qlSave">✓ Enregistrer la séance</button>
+    ${QL.wid ? `<button class="btn block danger-ghost mt8" data-a="delW" data-id="${QL.wid}">Supprimer la séance</button>` : ''}</div>`;
+}
+I.qlName = el => QL.name = el.value;
+I.qlDate = el => { if (el.value) QL.date = el.value > dk() ? dk() : el.value; };
+C.qlDate = I.qlDate;
+I.qlNote = el => QL.note = el.value;
+I.qlSet = el => {
+  const e = QL.ex[+el.dataset.n], j = +el.dataset.j, f = el.dataset.f, prev = e.sets[j][f];
+  e.sets[j][f] = el.value;
+  if (j === 0) e.sets.forEach((s, k) => { if (k && (s[f] === '' || String(s[f]) === String(prev))) { s[f] = el.value; const inp = $(`[data-i="qlSet"][data-n="${el.dataset.n}"][data-j="${k}"][data-f="${f}"]`); if (inp) inp.value = el.value; } });
+};
+A.qlTog = el => { const e = QL.ex[+el.dataset.n]; e.on = !e.on; paintSheet(); };
+A.qlOpen = el => { const i = +el.dataset.n; QL.open = QL.open === i ? null : i; paintSheet(); };
+A.qlAddSet = el => { const e = QL.ex[+el.dataset.n]; const l = e.sets[e.sets.length - 1] || { w: '', r: '', t: 'n' }; e.sets.push({ ...l }); paintSheet(); };
+A.qlRmSet = el => { const e = QL.ex[+el.dataset.n]; if (e.sets.length > 1) e.sets.pop(); paintSheet(); };
+A.qlDel = el => { QL.ex.splice(+el.dataset.n, 1); QL.open = null; paintSheet(); };
+A.qlLoad = el => { const r = S.routines.find(x => x.id === el.dataset.id); QL.routineId = r.id; QL.name = r.name; QL.ex = r.ex.map(e => ({ exId: e.exId, on: true, note: '', reps: e.reps, sets: prefillSets(e.exId, e.sets, e.reps) })); paintSheet(); };
+A.qlAdd = () => pickExercises(ids => { ids.forEach(id => QL.ex.push({ exId: id, on: true, note: '', sets: prefillSets(id, 3, null) })); QL.open = ids.length === 1 ? QL.ex.length - 1 : null; paintSheet(); });
+A.qlSave = () => {
+  const ex = QL.ex.filter(e => e.on).map(e => ({ exId: e.exId, note: e.note, sets: e.sets.map(s => ({ w: num(s.w) || 0, r: num(s.r) || 0, rpe: null, t: s.t || 'n' })).filter(s => s.r > 0 || s.w > 0) })).filter(e => e.sets.length);
+  if (!ex.length) return toast('Ajoute au moins un exercice avec des reps');
+  const miss = QL.ex.findIndex(e => e.on && EX(e.exId).type === 'w' && e.sets.every(s => !num(s.w)));
+  if (miss >= 0) { QL.open = miss; paintSheet(); return toast(`Entre le poids pour « ${EX(QL.ex[miss].exId).name} » (juste la 1re fois, après c’est pré-rempli)`, 3500); }
+  const old = QL.wid ? S.workouts.find(w => w.id === QL.wid) : null;
+  let start;
+  if (old && dk(old.start) === QL.date) start = old.start;
+  else if (QL.date === dk()) start = Date.now();
+  else start = parseDk(QL.date).getTime() + 17 * 36e5;
+  const wo = { id: old ? old.id : uid(), start, end: old ? start + ((old.end || old.start) - old.start) : start, name: QL.name.trim() || 'Séance', routineId: QL.routineId, ex, note: QL.note };
+  if (old) S.workouts = S.workouts.filter(w => w.id !== old.id);
+  wo.vol = woVolume(wo); wo.prs = computePRs(wo);
+  S.workouts.push(wo); sortWorkouts(); save();
+  closeAllSheets(); render();
+  if (old) toast('Séance modifiée ✅');
+  else summary(wo);
 };
 
 /* ---------- rendu principal ---------- */

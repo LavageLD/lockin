@@ -377,3 +377,29 @@ details summary{cursor:pointer;padding:4px 0}
 .acct-av img{width:100%;height:100%;object-fit:cover}
 .block-link{display:block;margin-left:auto;margin-right:auto}
 .or{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--mute);font-size:13px}.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+
+/* séance en un tap */
+.cta.done{background:var(--card);color:var(--text);border:1px solid rgba(200,255,46,.4)}
+.cta.done .cta-i{background:var(--acc);color:var(--ink)}
+.cta-i svg{width:22px;height:22px}
+.qlex{background:var(--card);border:1px solid var(--line);border-radius:16px;margin-bottom:8px;overflow:hidden}
+.qlex.off{opacity:.45}
+.qlhead{display:flex;align-items:center;gap:10px;padding:10px 10px 10px 12px}
+.qlck{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:transparent}
+.qlck.on{background:var(--acc);border-color:var(--acc);color:var(--ink)}
+.qlck svg{width:16px;height:16px}
+.qlname{text-align:left;min-width:0}
+.qlname b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qlsets{padding:0 12px 12px}
+.qlset{display:grid;grid-template-columns:18px 1fr 34px 12px 1fr 34px;gap:6px;align-items:center;margin-bottom:6px}
+.qlset input{padding:9px 6px;text-align:center;font-weight:700}
+/* jours passés */
+.datepick{position:relative;cursor:pointer}
+.datepick input{position:absolute;inset:0;opacity:0;width:100%;height:100%;padding:0;border:0}
+.pastbar{display:flex;justify-content:space-between;align-items:center;gap:8px;background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.3);color:#ffc062;border-radius:14px;padding:10px 12px;margin-bottom:12px;font-size:13.5px;font-weight:600}
+/* suppléments */
+.supps{display:flex;flex-direction:column;gap:6px}
+.supp{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:14px;background:var(--card2);border:1.5px solid transparent;text-align:left}
+.supp.on{border-color:var(--acc);background:rgba(200,255,46,.08)}
+.supp.on .ck{background:var(--acc);border-color:var(--acc);color:var(--ink)}
+.supp small{display:block;color:var(--mute);font-size:12px}

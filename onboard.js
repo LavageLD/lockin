@@ -282,6 +282,48 @@ insights = function () {
   return out.slice(0, 6);
 };
 
+/* ---------- NOTIFICATIONS (rappels eau / bouffe / suppléments) ---------- */
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const fromB64u = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+const isStandalone = () => navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+function notifOn() { return !!(S.pushCfg && S.pushCfg.sub) && typeof Notification !== 'undefined' && Notification.permission === 'granted'; }
+function notifHTML() {
+  const N = S.settings.notif || {};
+  const tg = (k, l, d) => `<label class="toggle"><span>${l}<small class="muted" style="display:block;font-weight:500;font-size:12.5px">${d}</small></span><input type="checkbox" data-i="notifTog" data-k="${k}" ${N[k] !== false ? 'checked' : ''}></label>`;
+  return `<h3 class="mt">Notifications</h3>
+    ${notifOn() ? `<div class="acct"><div class="acct-av">🔔</div><div class="grow"><b>Activées sur ce téléphone</b><div class="muted sm">Vérifié chaque heure, entre 8 h et 21 h.</div></div></div>`
+      : `<button class="btn block acc" data-a="enableNotifs">🔔 Activer les notifications</button><p class="muted sm mt8">Il faut être connecté à ton compte et ouvrir Lockin à partir de l’icône sur ton écran d’accueil.</p>`}
+    ${tg('water', '💧 Eau', 'Si t’es en retard sur ton objectif (10 h à 20 h)')}
+    ${tg('food', '🍗 Bouffe', 'À 13 h et 19 h si t’as pas assez mangé')}
+    ${tg('supps', '💊 Suppléments', 'À l’heure choisie si c’est pas coché (+ 21 h)')}
+    ${notifOn() ? `<button class="btn block ghost sm mt8" data-a="enableNotifs">Réactiver / réparer les notifications</button>` : ''}`;
+}
+C.notifTog = el => { S.settings.notif = S.settings.notif || {}; S.settings.notif[el.dataset.k] = el.checked; save(); };
+A.enableNotifs = async () => {
+  if (!AUTH.user) return toast('Connecte-toi à ton compte d’abord (en haut des Réglages)', 2800);
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || typeof Notification === 'undefined') {
+    return openSheet(() => `<h2 class="sh-t">Notifications</h2><p class="mb">${isStandalone() ? 'Ton iPhone supporte pas les notifications web. Mets-le à jour (iOS 16.4 ou plus récent).' : 'Sur iPhone, les notifications marchent juste quand Lockin est ouverte à partir de l’icône sur ton écran d’accueil (pas dans Safari).'}</p><button class="btn block acc" data-a="closeSheet">OK</button>`);
+  }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return toast('Refusé — active-les dans Réglages iPhone › Notifications › Lockin', 3500);
+    const reg = await navigator.serviceWorker.ready;
+    if (!S.pushCfg || !S.pushCfg.pub || !S.pushCfg.priv) {
+      const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+      const raw = await crypto.subtle.exportKey('raw', kp.publicKey), jwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
+      S.pushCfg = { pub: b64u(raw), priv: jwk.d };
+    }
+    const old = await reg.pushManager.getSubscription(); if (old) await old.unsubscribe();
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64u(S.pushCfg.pub) });
+    S.pushCfg.sub = sub.toJSON();
+    try { S.settings.tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { }
+    S.settings.notif = S.settings.notif || { water: true, food: true, supps: true };
+    save(); await AUTH.mod.syncNow();
+    reg.showNotification('Lockin 🔒', { body: 'Notifications activées ✅', icon: 'icon-192.png', tag: 'on' });
+    if (SH.length) paintSheet(); toast('Notifications activées ✅');
+  } catch (e) { console.error(e); toast('Erreur : ' + (e.message || e), 4000); }
+};
+
 /* ---------- démarrage ---------- */
 render();
 if (!S.settings.profileDone) openWelcome();
