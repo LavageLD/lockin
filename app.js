@@ -73,12 +73,12 @@ const u = () => S.settings.unit;
 let EXMAP = {};
 function rebuildEx() {
   EXMAP = {};
-  LIB_RAW.forEach(([id, name, muscle, equip, type]) => EXMAP[id] = { id, name, muscle, equip, type: type || 'w' });
+  LIB_RAW.forEach(([id, name, muscle, equip, type]) => EXMAP[id] = { id, name: (typeof EX_EN !== 'undefined' && EX_EN[id]) || name, alt: name, muscle, equip, type: type || 'w' });
   S.exercises.forEach(e => EXMAP[e.id] = { ...e, custom: true });
 }
 rebuildEx();
 const EX = id => EXMAP[id] || { id, name: 'Exercice supprimé', muscle: 'Abdos', equip: '', type: 'w' };
-const allEx = () => Object.values(EXMAP).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+const allEx = () => Object.values(EXMAP).sort((a, b) => a.name.localeCompare(b.name, 'en'));
 
 /* ---------- routines prédéfinies ---------- */
 function R(name, list) { return { id: uid(), name, ex: list.map(([exId, sets, reps]) => ({ exId, sets, reps, rest: null })) }; }
@@ -525,7 +525,7 @@ function pickExercises(cb, single = false) {
 function pkList() {
   const q = norm(PK.q.trim());
   const used = {}; S.workouts.forEach(w => w.ex.forEach(e => used[e.exId] = (used[e.exId] || 0) + 1));
-  const L = allEx().filter(e => (!PK.m || e.muscle === PK.m) && (!q || norm(e.name).includes(q)))
+  const L = allEx().filter(e => (!PK.m || e.muscle === PK.m) && (!q || norm(e.name + ' ' + (e.alt || '')).includes(q)))
     .sort((a, b) => (used[b.id] || 0) - (used[a.id] || 0));
   return L.map(e => `<button class="li tap ${PK.sel.includes(e.id) ? 'sel' : ''}" data-a="pkTap" data-id="${e.id}"><span class="mdot" style="background:${MUSCLES[e.muscle]}"></span><div class="grow"><b>${esc(e.name)}</b><div class="muted sm">${e.muscle} · ${e.equip}${used[e.id] ? ` · ${used[e.id]}×` : ''}</div></div><span class="ck">${PK.sel.includes(e.id) ? IC.check : ''}</span></button>`).join('') || '<p class="muted">Rien trouvé.</p>';
 }

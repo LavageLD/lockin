@@ -181,3 +181,29 @@ const FOODS_RAW = [
   ['f_subway','Sous-marin poulet 6 po','1',350,25,45,6],
   ['f_sushi','Sushi (maki)','8 morceaux',300,10,55,4],
 ];
+
+// Noms des exercices en anglais (l'interface reste en français)
+const EX_EN = {
+  bench: 'Bench Press', incline_bench: 'Incline Bench Press', db_bench: 'Dumbbell Bench Press', db_incline: 'Incline Dumbbell Press',
+  decline_bench: 'Decline Bench Press', smith_bench: 'Smith Machine Bench Press', chest_press: 'Machine Chest Press', chest_fly: 'Dumbbell Fly',
+  cable_fly: 'Cable Fly', pec_deck: 'Pec Deck', pushup: 'Push-ups', dips_chest: 'Chest Dips',
+  deadlift: 'Deadlift', rack_pull: 'Rack Pull', pullup: 'Pull-ups', wpullup: 'Weighted Pull-ups', chinup: 'Chin-ups',
+  lat_pulldown: 'Lat Pulldown', bb_row: 'Barbell Row', db_row: 'Dumbbell Row', cable_row: 'Seated Cable Row', tbar_row: 'T-Bar Row',
+  machine_row: 'Machine Row', pullover: 'Cable Pullover', shrug: 'Shrugs', back_ext: 'Back Extensions',
+  ohp: 'Overhead Press', db_ohp: 'Dumbbell Shoulder Press', shoulder_press_m: 'Machine Shoulder Press', arnold: 'Arnold Press',
+  lat_raise: 'Lateral Raises', cable_lat: 'Cable Lateral Raises', front_raise: 'Front Raises', rear_delt: 'Rear Delt Fly',
+  reverse_pec: 'Reverse Pec Deck', face_pull: 'Face Pulls', upright_row: 'Upright Row',
+  bb_curl: 'Barbell Curl', ez_curl: 'EZ Bar Curl', db_curl: 'Dumbbell Curl', hammer: 'Hammer Curls', incline_curl: 'Incline Dumbbell Curl',
+  preacher: 'Preacher Curls', cable_curl: 'Cable Curl',
+  pushdown: 'Tricep Pushdown', rope_pushdown: 'Rope Pushdown', skull: 'Skull Crushers', oh_ext: 'Overhead Tricep Extension',
+  cgbp: 'Close-Grip Bench Press', dips: 'Tricep Dips', kickback: 'Tricep Kickback',
+  squat: 'Squat', front_squat: 'Front Squat', smith_squat: 'Smith Machine Squat', hack: 'Hack Squat', leg_press: 'Leg Press',
+  leg_ext: 'Leg Extension', lunge: 'Lunges', bulgarian: 'Bulgarian Split Squat', goblet: 'Goblet Squat',
+  rdl: 'Romanian Deadlift (RDL)', leg_curl: 'Lying Leg Curl', seated_curl: 'Seated Leg Curl', good_morning: 'Good Morning', nordic: 'Nordic Curl',
+  hip_thrust: 'Hip Thrust', glute_bridge: 'Glute Bridge', abductor: 'Hip Abductor', adductor: 'Hip Adductor', cable_kick: 'Cable Glute Kickback', step_up: 'Step-ups',
+  calf_raise: 'Standing Calf Raise', seated_calf: 'Seated Calf Raise', calf_press: 'Leg Press Calf Raise',
+  plank: 'Plank', crunch: 'Crunches', cable_crunch: 'Cable Crunch', hanging_leg: 'Hanging Leg Raises', leg_raise: 'Lying Leg Raises',
+  ab_wheel: 'Ab Wheel', russian: 'Russian Twists', wrist_curl: 'Wrist Curls', farmer: 'Farmer’s Walk',
+  treadmill: 'Treadmill', incline_walk: 'Incline Walk', bike: 'Stationary Bike', rower: 'Rowing Machine', elliptical: 'Elliptical',
+  stairs: 'StairMaster', run: 'Outdoor Run', jump_rope: 'Jump Rope'
+};

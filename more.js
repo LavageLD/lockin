@@ -129,10 +129,10 @@ function plates(w) { const bar = S.settings.barWeight || (u() === 'kg' ? 20 : 45
 const PLATE_EX = new Set(['bench', 'squat', 'deadlift', 'ohp', 'bb_row', 'incline_bench', 'front_squat', 'rdl', 'hip_thrust', 'cgbp', 'rack_pull']);
 function badge(lvl, big) { const R = RANKS[lvl]; return `<span class="rk ${big ? 'big' : ''}" style="--rk:${R.c}">${R.i} ${R.n}</span>`; }
 const PR_LIFTS = [
-  { key: 'bench', name: 'Bench', ids: ['bench'] },
+  { key: 'bench', name: 'Bench Press', ids: ['bench'] },
   { key: 'squat', name: 'Squat', ids: ['squat'] },
   { key: 'deadlift', name: 'Deadlift', ids: ['deadlift'] },
-  { key: 'pull', name: 'Tractions lestées', ids: ['wpullup', 'pullup', 'chinup'], total: true }
+  { key: 'pull', name: 'Weighted Pull-ups', ids: ['wpullup', 'pullup', 'chinup'], total: true }
 ];
 const STD_PULL = { h: [1.0, 1.1, 1.3, 1.55, 1.85], f: [0.75, 0.9, 1.05, 1.25, 1.5] };
 function liftPR(L, excludeId) {
@@ -164,7 +164,7 @@ function prsHTML() {
   return `${glob != null ? `<div class="rkglobal" style="--rk:${RANKS[glob].c}"><div class="rk-i">${RANKS[glob].i}</div><div><small>Rang global</small><b>${RANKS[glob].n}</b><div class="muted sm">${RANK_DESC[glob]} · ${ranked.length}/4 lifts classés</div></div></div>` : ''}
     ${needBW ? `<div class="pastbar">⚖️ Entre ton poids dans Corps pour voir tes rangs</div>` : ''}
     ${rows.map(({ L, pr, rk }) => {
-      if (!pr) return `<div class="prcard"><div class="row between"><b>${L.name}</b><span class="muted sm">Pas encore de record</span></div><div class="muted sm mt8">${L.total ? 'Log « Tractions lestées » (ou Tractions) avec le poids ajouté dans +Lest.' : 'Log-le dans une séance avec ton poids pis tes reps.'}</div></div>`;
+      if (!pr) return `<div class="prcard"><div class="row between"><b>${L.name}</b><span class="muted sm">Pas encore de record</span></div><div class="muted sm mt8">${L.total ? 'Log « Weighted Pull-ups » (ou Pull-ups) avec le poids ajouté dans +Lest.' : 'Log-le dans une séance avec ton poids pis tes reps.'}</div></div>`;
       const pl = !L.total && pr.heavy ? plates(pr.heavy.w) : 0;
       const best = L.total ? `${pr.w ? '+' + fmt(pr.w, 1) + ' ' + u() : 'poids du corps'} × ${pr.r}` : `${fmt(pr.w, 1)} ${u()} × ${pr.r}`;
       return `<button class="prcard" data-a="exInfo" data-ex="${L.ids[0]}">
