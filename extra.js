@@ -170,11 +170,8 @@ A.copyLink = el => copyTxt(el.dataset.v);
 A.copyScript = async el => { try { const t = await (await fetch(el.dataset.v + '?' + Date.now())).text(); await navigator.clipboard.writeText(t); toast('Script copié ✅'); } catch (e) { toast('Ouvre ' + el.dataset.v + ' pour le copier', 3000); } };
 A.shortcutsHelp = el => {
   const s = el && el.dataset && el.dataset.s;
-  openSheet(() => `<h2 class="sh-t">⚡ Raccourcis iPhone</h2><p class="muted sm mb">À configurer une fois. Après, tout se fait presque tout seul. Connecte-toi aussi à ton compte Lockin dans Safari une fois (ces liens s’ouvrent dans Safari).</p>
-    <div class="card inset ${s === 'gym' ? 'hl' : ''}"><b>📍 Gym automatique</b><p class="muted sm mt8">Quand t’arrives à un de tes gyms, Lockin s’ouvre direct sur « Cocher ta séance ». Un tap pis c’est fait. Une automatisation par gym.</p>
-      <button class="btn sm block mt8" data-a="copyLink" data-v="${LINKS.checkin}">📋 Copier le lien gym</button></div>
-    <div class="card inset ${s === 'bottle' ? 'hl' : ''}"><b>🍼 Bouteille au dos du cell</b><p class="muted sm mt8">Tape 2 fois le dos de ton iPhone = +1 bouteille d’eau.</p>
-      <button class="btn sm block mt8" data-a="copyLink" data-v="${LINKS.bottle}">📋 Copier le lien bouteille</button></div>
+  openSheet(() => `<h2 class="sh-t">⚡ Raccourcis iPhone</h2><p class="muted sm mb">À configurer une fois. Après, tout se fait tout seul.</p>
+    <div class="card inset ${s === 'gym' ? 'hl' : ''}"><b>📍 Gym automatique</b><p class="muted sm mt8">Dans l’app Raccourcis : Automatisation → Arriver → ton gym → Exécuter immédiatement → action « Afficher la notification » : « 💪 T’es au gym — coche ta séance dans Lockin ». Une automatisation par gym.</p></div>
     <div class="card inset ${s === 'steps' ? 'hl' : ''}"><b>👟 Pas automatiques</b><p class="muted sm mt8">Tes pas de l’app Santé envoyés à Lockin quelques fois par jour (avec Scriptable, comme ton widget).</p>
       <button class="btn sm block mt8" data-a="copyScript" data-v="lockin-pas.js">📋 Copier le script des pas</button>
       <label class="toggle"><span>C’est configuré (le bouton 🔄 lance le raccourci « Lockin Pas »)</span><input type="checkbox" data-i="stepsAuto" ${S.settings.stepsAuto ? 'checked' : ''}></label></div>
