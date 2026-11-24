@@ -5,10 +5,11 @@ on:
     - cron: '7 * * * *'   # chaque heure
   workflow_dispatch:
     inputs:
-      test:
-        description: 'Envoyer une notif test maintenant'
-        type: boolean
-        default: true
+      kind:
+        description: 'test = notif test · gym = arrivée au gym'
+        type: choice
+        options: [test, gym]
+        default: test
 
 jobs:
   rappels:
@@ -24,4 +25,4 @@ jobs:
         env:
           LOCKIN_EMAIL: ${{ secrets.LOCKIN_EMAIL }}
           LOCKIN_PASSWORD: ${{ secrets.LOCKIN_PASSWORD }}
-          TEST: ${{ github.event.inputs.test }}
+          KIND: ${{ github.event.inputs.kind }}

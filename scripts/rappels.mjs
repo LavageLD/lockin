@@ -3,7 +3,7 @@ import webpush from 'web-push';
 
 const API_KEY = 'AIzaSyD-ntbSenTgY07B48MSNNFBw5EkIQm0gaI';
 const PROJECT = 'lockin-db6d3';
-const { LOCKIN_EMAIL: email, LOCKIN_PASSWORD: password, TEST } = process.env;
+const { LOCKIN_EMAIL: email, LOCKIN_PASSWORD: password, KIND } = process.env;
 
 if (!email || !password) { console.log('Secrets LOCKIN_EMAIL / LOCKIN_PASSWORD manquants — rien à faire.'); process.exit(0); }
 
@@ -29,13 +29,19 @@ const today = `${parts.year}-${parts.month}-${parts.day}`, hour = parseInt(parts
 console.log(`Heure locale : ${hour} h (${tz}), jour ${today}`);
 
 const sent = [];
-async function send(title, body, tag) {
-  try { await webpush.sendNotification(P.sub, JSON.stringify({ title, body, tag }), { TTL: 3600 }); sent.push(title); console.log('✅ Envoyé :', title); }
+async function send(title, body, tag, url) {
+  try { await webpush.sendNotification(P.sub, JSON.stringify({ title, body, tag, url }), { TTL: 3600 }); sent.push(title); console.log('✅ Envoyé :', title); }
   catch (e) { console.log('❌ Erreur', e.statusCode, e.body || e.message); if (e.statusCode === 404 || e.statusCode === 410) console.log('→ Abonnement expiré : réactive les notifications dans l’app.'); }
 }
 const L = (x, d = 1) => (x / 1000).toFixed(d).replace('.', ',');
 
-if (TEST === 'true') { await send('Lockin 🔒', 'Test réussi — tes rappels sont prêts ✅', 'test'); process.exit(0); }
+if (KIND === 'test') { await send('Lockin 🔒', 'Test réussi — tes rappels sont prêts ✅', 'test'); process.exit(0); }
+if (KIND === 'gym') {
+  const done = (S.workouts || []).some(w => new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date(w.start)) === today);
+  if (done) console.log('Séance déjà cochée aujourd’hui — pas de notif.');
+  else await send('💪 T’es au gym', 'Tape ici pour cocher ta séance', 'gym', './?go=checkin');
+  process.exit(0);
+}
 
 const N = (S.settings && S.settings.notif) || {};
 const g = { ...(S.settings.goals || { cal: 2500, p: 180, water: 3000 }), ...((S.settings.dynCal && (S.goalsByDay || {})[today]) || {}) };
