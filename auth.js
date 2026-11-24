@@ -26,7 +26,11 @@ async function pull(u) {
     if (snap.exists()) {
       const remote = JSON.parse(snap.data().data);
       const localEmpty = !S.workouts.length && !S.body.length && !Object.keys(S.log || {}).length;
-      if (localEmpty || (remote.updatedAt || 0) > (S.updatedAt || 0)) { H.setState(remote); H.onSynced(Date.now()); return; }
+      const stepsF = snap.data().steps;
+      if (localEmpty || (remote.updatedAt || 0) > (S.updatedAt || 0)) { H.setState(remote); H.onSynced(Date.now()); }
+      else await push();
+      if (stepsF) { try { H.mergeSteps(JSON.parse(stepsF)); } catch (e) { } }
+      return;
     }
     await push();
   } catch (e) { console.error(e); H.toast('Synchro impossible pour l’instant'); }
@@ -35,7 +39,7 @@ async function pull(u) {
 async function push() {
   const u = auth && auth.currentUser; if (!u) return;
   const S = H.getState();
-  await F.setDoc(F.doc(db, 'users', u.uid), { data: JSON.stringify(S), updatedAt: S.updatedAt || Date.now(), email: u.email || '' });
+  await F.setDoc(F.doc(db, 'users', u.uid), { data: JSON.stringify(S), updatedAt: S.updatedAt || Date.now(), email: u.email || '' }, { merge: true });
   H.onSynced(Date.now());
 }
 
@@ -49,3 +53,5 @@ export async function google() {
 export async function resetPassword(email) { return F.sendPasswordResetEmail(auth, email); }
 export async function logout() { await F.signOut(auth); }
 export async function syncNow() { await push(); }
+
+export async function refresh() { if (auth && auth.currentUser) await pull(auth.currentUser); }

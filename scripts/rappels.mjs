@@ -38,7 +38,8 @@ const L = (x, d = 1) => (x / 1000).toFixed(d).replace('.', ',');
 if (TEST === 'true') { await send('Lockin 🔒', 'Test réussi — tes rappels sont prêts ✅', 'test'); process.exit(0); }
 
 const N = (S.settings && S.settings.notif) || {};
-const g = S.settings.goals || { cal: 2500, p: 180, water: 3000 };
+const g = { ...(S.settings.goals || { cal: 2500, p: 180, water: 3000 }), ...((S.settings.dynCal && (S.goalsByDay || {})[today]) || {}) };
+const yd = new Date(new Date(`${today}T12:00:00Z`).getTime() - 864e5).toISOString().slice(0, 10);
 const log = (S.log || {})[today] || [];
 const T = log.reduce((a, x) => ({ cal: a.cal + x.cal * x.q, p: a.p + x.p * x.q }), { cal: 0, p: 0 });
 const water = (S.water || {})[today] || 0;
@@ -54,12 +55,29 @@ if (N.food !== false && (hour === 13 || hour === 19)) {
   if (!log.length) await send('🍽️ Rien de loggé aujourd’hui', hour === 13 ? 'Log ton déjeuner pis ton dîner pour rester sur la track.' : 'Il te reste le souper — log ce que t’as mangé aujourd’hui.', 'food');
   else if (T.cal < g.cal * f * 0.8 || T.p < g.p * f * 0.8) await send('🍗 T’es en retard sur ta bouffe', `${Math.round(T.cal)} / ${g.cal} cal · ${Math.round(T.p)} / ${g.p} g de protéines. Mange un vrai repas.`, 'food');
 }
-// Suppléments : à l'heure choisie + 21 h si pas coché
+// Suppléments : à l'heure choisie si pas coché
 if (N.supps !== false) {
   const taken = (S.suppLog || {})[today] || [];
   for (const s of S.supps || []) {
-    if (s.hour == null || taken.includes(s.id)) continue;
-    if (hour === s.hour || (hour === 21 && s.hour < 21)) await send(`💊 ${s.name}`, `T’as pas encore coché « ${s.name} » aujourd’hui${s.dose ? ` (${s.dose})` : ''}. Prends-la pis coche-la dans Lockin.`, 'supp-' + s.id);
+    if (s.hour == null || taken.includes(s.id) || s.hour === 21) continue;
+    if (hour === s.hour) await send(`💊 ${s.name}`, `T’as pas encore coché « ${s.name} » aujourd’hui${s.dose ? ` (${s.dose})` : ''}. Prends-la pis coche-la dans Lockin.`, 'supp-' + s.id);
   }
+}
+// Oublis : 21 h = ce qui manque aujourd'hui ; 9 h = journée d'hier vide
+function missing(k) {
+  const m = [];
+  if (!((S.log || {})[k] || []).length) m.push('ta bouffe');
+  if (!((S.water || {})[k] > 0)) m.push('ton eau');
+  (S.supps || []).forEach(s => { if (s.hour != null && !(((S.suppLog || {})[k]) || []).includes(s.id)) m.push(s.name.toLowerCase()); });
+  return m;
+}
+const started = (S.profile && S.profile.at) ? new Date(S.profile.at).toISOString().slice(0, 10) : '2000-01-01';
+if (N.forgot !== false && hour === 21) {
+  const m = missing(today);
+  if (m.length) await send('📝 Il te manque des affaires', `Pas encore loggé aujourd’hui : ${m.join(', ')}. 30 secondes pis ta journée est complète.`, 'forgot');
+}
+if (N.forgot !== false && hour === 9 && yd >= started) {
+  const m = missing(yd);
+  if (m.length >= 2 || m.includes('ta bouffe')) await send('📝 Hier est incomplet', `T’as pas loggé ${m.join(', ')} hier. Ouvre Lockin pour le compléter en 1 tap.`, 'yesterday');
 }
 console.log(sent.length ? `${sent.length} notif(s) envoyée(s).` : 'Rien à envoyer cette heure-ci.');

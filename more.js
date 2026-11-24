@@ -335,7 +335,8 @@ A.progTab = el => { S.ui.progTab = el.dataset.t; save(); render(); };
 
 /* ---------- NUTRITION ---------- */
 const MEALS = ['Déjeuner', 'Dîner', 'Souper', 'Collations'];
-const allFoods = () => [...S.foods, ...FOODS_RAW.map(([id, name, serv, cal, p, c, f]) => ({ id, name, serv, cal, p, c, f }))];
+const allMeals = () => MEALS_RAW.map(([id, name, serv, cal, p, c, f]) => ({ id, name, serv, cal, p, c, f, meal: true }));
+const allFoods = () => [...S.foods, ...allMeals(), ...FOODS_RAW.map(([id, name, serv, cal, p, c, f]) => ({ id, name, serv, cal, p, c, f }))];
 VIEWS.nutrition = () => {
   const k = S.ui.nutDate || dk(), T = dayTotals(k), g = S.settings.goals, L = S.log[k] || [], left = g.cal - T.cal, wml = S.water[k] || 0;
   const label = k === dk() ? "Aujourd'hui" : k === dk(addDays(new Date(), -1)) ? 'Hier' : cap(dateLong(parseDk(k)));
@@ -390,22 +391,22 @@ function foodSheet() {
   if (FA.tab === 'search') return `<h2 class="sh-t">${FA.meal}</h2>${tabs}<input type="search" data-i="faQ" placeholder="Rechercher un aliment..." value="${esc(FA.q)}" class="mt8"><div id="faList" class="mt8">${faList()}</div>`;
   if (FA.tab === 'quick') { const x = FA.quick; return `<h2 class="sh-t">${FA.meal}</h2>${tabs}<p class="muted sm mt8">Entre juste les chiffres (ex. resto, étiquette).</p>
       <label class="fl">Nom (optionnel)<input data-i="faQuick" data-k="name" value="${esc(x.name)}" placeholder="Ajout rapide"></label>
-      <div class="grid2"><label class="fl">Calories<input inputmode="decimal" data-i="faQuick" data-k="cal" value="${esc(x.cal)}"></label><label class="fl">Protéines (g)<input inputmode="decimal" data-i="faQuick" data-k="p" value="${esc(x.p)}"></label><label class="fl">Glucides (g)<input inputmode="decimal" data-i="faQuick" data-k="c" value="${esc(x.c)}"></label><label class="fl">Lipides (g)<input inputmode="decimal" data-i="faQuick" data-k="f" value="${esc(x.f)}"></label></div>
+      <div class="grid2"><label class="fl">Calories<input inputmode="decimal" data-i="faQuick" data-k="cal" value="${esc(x.cal)}"></label><label class="fl">Protéines (g)<input inputmode="decimal" data-i="faQuick" data-k="p" value="${esc(x.p)}"></label>${CF() ? `<label class="fl">Glucides (g)<input inputmode="decimal" data-i="faQuick" data-k="c" value="${esc(x.c)}"></label><label class="fl">Lipides (g)<input inputmode="decimal" data-i="faQuick" data-k="f" value="${esc(x.f)}"></label>` : ''}</div>
       <button class="btn block acc mt" data-a="faQuickAdd">Ajouter</button>`; }
   const x = FA.nf; return `<h2 class="sh-t">Nouvel aliment</h2>${tabs}
       <label class="fl mt8">Nom<input data-i="faNew" data-k="name" value="${esc(x.name)}" placeholder="ex. Wrap maison"></label>
       <label class="fl">Portion<input data-i="faNew" data-k="serv" value="${esc(x.serv)}" placeholder="ex. 1 wrap, 100 g"></label>
-      <div class="grid2"><label class="fl">Calories<input inputmode="decimal" data-i="faNew" data-k="cal" value="${esc(x.cal)}"></label><label class="fl">Protéines (g)<input inputmode="decimal" data-i="faNew" data-k="p" value="${esc(x.p)}"></label><label class="fl">Glucides (g)<input inputmode="decimal" data-i="faNew" data-k="c" value="${esc(x.c)}"></label><label class="fl">Lipides (g)<input inputmode="decimal" data-i="faNew" data-k="f" value="${esc(x.f)}"></label></div>
+      <div class="grid2"><label class="fl">Calories<input inputmode="decimal" data-i="faNew" data-k="cal" value="${esc(x.cal)}"></label><label class="fl">Protéines (g)<input inputmode="decimal" data-i="faNew" data-k="p" value="${esc(x.p)}"></label>${CF() ? `<label class="fl">Glucides (g)<input inputmode="decimal" data-i="faNew" data-k="c" value="${esc(x.c)}"></label><label class="fl">Lipides (g)<input inputmode="decimal" data-i="faNew" data-k="f" value="${esc(x.f)}"></label>` : ''}</div>
       <button class="btn block acc mt" data-a="faNewSave">Créer et ajouter</button>`;
 }
 function faList() {
   const q = norm(FA.q.trim());
-  const row = f => `<button class="li tap" data-a="faPick" data-id="${esc(f.id)}"><div class="grow"><b>${esc(f.name)}</b><div class="muted sm">${esc(f.serv || '')} · P ${fmt(f.p)} G ${fmt(f.c)} L ${fmt(f.f)}</div></div><b>${fmt(f.cal)}</b></button>`;
-  if (!q) { const r = recents(); return (r.length ? `<div class="month-h">Récents</div>${r.map(row).join('')}` : '') + `<div class="month-h">${S.foods.length ? 'Mes aliments + base' : 'Base d’aliments'}</div>${allFoods().map(row).join('')}`; }
+  const row = f => `<button class="li tap" data-a="faPick" data-id="${esc(f.id)}"><div class="grow"><b>${esc(f.name)}</b><div class="muted sm">${esc(f.serv || '')} · ${macTxt(f.p, f.c, f.f)}</div></div><b>${fmt(f.cal)}</b></button>`;
+  if (!q) { const r = recents(); return (r.length ? `<div class="month-h">Récents</div>${r.map(row).join('')}` : '') + (S.foods.length ? `<div class="month-h">Mes aliments</div>${S.foods.map(row).join('')}` : '') + `<div class="month-h">🍽️ Repas</div>${allMeals().map(row).join('')}<div class="month-h">Ingrédients</div>${FOODS_RAW.map(([id, name, serv, cal, p, c, f]) => row({ id, name, serv, cal, p, c, f })).join('')}`; }
   const L = [...recents(), ...allFoods()].filter((f, i, a) => norm(f.name).includes(q) && a.findIndex(x => x.name === f.name) === i);
   return L.map(row).join('') || `<p class="muted">Rien trouvé. Utilise <b>Rapide</b> ou <b>Créer</b>.</p>`;
 }
-function faTot() { const f = FA.sel, q = num(FA.qty) || 0; return `${statBox('Calories', fmt(f.cal * q))}${statBox('Protéines', fmt(f.p * q, 1) + ' g')}${statBox('Glucides', fmt(f.c * q, 1) + ' g')}${statBox('Lipides', fmt(f.f * q, 1) + ' g')}`; }
+function faTot() { const f = FA.sel, q = num(FA.qty) || 0; return `${statBox('Calories', fmt(f.cal * q))}${statBox('Protéines', fmt(f.p * q, 1) + ' g')}${CF() ? statBox('Glucides', fmt(f.c * q, 1) + ' g') + statBox('Lipides', fmt(f.f * q, 1) + ' g') : ''}`; }
 A.faTab = el => { FA.tab = el.dataset.t; paintSheet(); };
 I.faQ = el => { FA.q = el.value; $('#faList').innerHTML = faList(); };
 A.faPick = el => { const id = el.dataset.id; FA.sel = [...recents(), ...allFoods()].find(f => f.id === id); FA.qty = 1; paintSheet(); };
@@ -424,7 +425,7 @@ A.editFood = el => {
   openSheet(() => `<h2 class="sh-t">${esc(EF.name)}</h2><div class="muted mb">${esc(EF.serv || 'portion')} · ${fmt(EF.cal)} cal/portion</div>
     <label class="fl">Portions<input inputmode="decimal" data-i="efQ" value="${EF.q}"></label>
     <div class="muted sm mb">Valeurs pour 1 portion :</div>
-    <div class="grid2"><label class="fl">Calories<input inputmode="decimal" data-i="efM" data-k="cal" value="${EF.cal}"></label><label class="fl">Protéines (g)<input inputmode="decimal" data-i="efM" data-k="p" value="${EF.p}"></label><label class="fl">Glucides (g)<input inputmode="decimal" data-i="efM" data-k="c" value="${EF.c}"></label><label class="fl">Lipides (g)<input inputmode="decimal" data-i="efM" data-k="f" value="${EF.f}"></label></div>
+    <div class="grid2"><label class="fl">Calories<input inputmode="decimal" data-i="efM" data-k="cal" value="${EF.cal}"></label><label class="fl">Protéines (g)<input inputmode="decimal" data-i="efM" data-k="p" value="${EF.p}"></label>${CF() ? `<label class="fl">Glucides (g)<input inputmode="decimal" data-i="efM" data-k="c" value="${EF.c}"></label><label class="fl">Lipides (g)<input inputmode="decimal" data-i="efM" data-k="f" value="${EF.f}"></label>` : ''}</div>
     <label class="fl">Repas<select data-i="efMeal">${MEALS.map(m => `<option ${m === EF.meal ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
     <button class="btn block acc mt" data-a="efSave">OK</button><button class="btn block danger-ghost mt8" data-a="efDel">Supprimer</button>`);
 };
@@ -448,7 +449,9 @@ A.goals = () => {
       <div id="tdeeOut">${tdee ? `<p class="sm">Maintien estimé : <b>${fmt(tdee.tdee)} cal</b> → objectif <b>${fmt(tdee.cal)} cal</b>, ${tdee.p} g prot, ${tdee.c} g gluc, ${tdee.f} g lip</p><button class="btn block mt8" data-a="goApply">Appliquer</button>` : '<p class="muted sm">Remplis poids, taille et âge.</p>'}</div>
     </div>
     <h3 class="mt">Manuel</h3>
-    <div class="grid2"><label class="fl">Calories<input inputmode="numeric" data-i="go" data-k="cal" value="${GO.cal}"></label><label class="fl">Protéines (g)<input inputmode="numeric" data-i="go" data-k="p" value="${GO.p}"></label><label class="fl">Glucides (g)<input inputmode="numeric" data-i="go" data-k="c" value="${GO.c}"></label><label class="fl">Lipides (g)<input inputmode="numeric" data-i="go" data-k="f" value="${GO.f}"></label><label class="fl">Eau (ml)<input inputmode="numeric" data-i="go" data-k="water" value="${GO.water}"></label></div>
+    <div class="grid2"><label class="fl">Calories<input inputmode="numeric" data-i="go" data-k="cal" value="${GO.cal}"></label><label class="fl">Protéines (g)<input inputmode="numeric" data-i="go" data-k="p" value="${GO.p}"></label>${CF() ? `<label class="fl">Glucides (g)<input inputmode="numeric" data-i="go" data-k="c" value="${GO.c}"></label><label class="fl">Lipides (g)<input inputmode="numeric" data-i="go" data-k="f" value="${GO.f}"></label>` : ''}<label class="fl">Eau (ml)<input inputmode="numeric" data-i="go" data-k="water" value="${GO.water}"></label></div>
+    <label class="toggle"><span>Suivre les glucides et lipides<small class="muted" style="display:block;font-weight:500;font-size:12.5px">Désactive pour juste calories + protéines</small></span><input type="checkbox" data-i="trackCF" ${CF() ? 'checked' : ''}></label>
+    <button class="btn block ghost mt8" data-a="maintCalc">🧮 Calculateur de maintien (pas, % gras…)</button>
     <button class="btn block acc mt" data-a="goSave">Enregistrer</button>`;
   }, { full: true });
 };
@@ -587,6 +590,9 @@ A.settings = () => openSheet(() => {
     <label class="fl">Barre (${u()})<input inputmode="decimal" data-i="stNum" data-k="barWeight" value="${s.barWeight}"></label>
   </div>
   <label class="toggle"><span>Son + vibration fin du repos</span><input type="checkbox" data-i="stSound" ${s.sound ? 'checked' : ''}></label>
+  <h3 class="mt">Raccourcis</h3>
+  <button class="li tap" data-a="shortcutsHelp">⚡ Raccourcis iPhone : gym auto, bouteille, pas<span class="grow"></span><span class="chev">›</span></button>
+  <label class="toggle"><span>Suivre glucides + lipides</span><input type="checkbox" data-i="trackCF" ${CF() ? 'checked' : ''}></label>
   <h3 class="mt">Widget</h3>
   <a class="btn block" href="widget.html" target="_blank" rel="noopener">📱 Mettre le widget sur mon écran d’accueil</a>
   <h3 class="mt">Données</h3>
@@ -682,31 +688,31 @@ function cafLog(p) {
   toast(`☕ ${p.name} · +${p.mg} mg${tot > lim ? ` — t’es à ${tot} mg ⚠️` : ''}`, 2000);
 }
 A.cafAdd = el => { const p = S.cafPresets.find(x => x.id === el.dataset.id); if (!p) return; cafLog(p); if (SH.length) closeAllSheets(); render(); };
-let CF = { edit: false, name: '', mg: '' };
-A.cafOpen = () => { CF = { edit: false, name: '', mg: '' }; openSheet(cafSheet, { full: true, onClose: () => render() }); };
+let CFS = { edit: false, name: '', mg: '' };
+A.cafOpen = () => { CFS = { edit: false, name: '', mg: '' }; openSheet(cafSheet, { full: true, onClose: () => render() }); };
 function cafSheet() {
   const L = cafSorted(), c = cafUsage();
-  return `<div class="row between"><h2 class="sh-t">Caféine</h2><button class="link" data-a="cafEditMode">${CF.edit ? 'Terminé' : '✏️ Modifier les sortes'}</button></div>
-    <p class="muted sm mb">${CF.edit ? 'Change le nom ou les mg selon TES canettes. C’est sauvegardé pour les prochaines fois.' : 'Tape une boisson pour l’ajouter. Les mg sont des estimations, modifie-les si ta canette dit autre chose.'}</p>
-    ${L.map(p => CF.edit
+  return `<div class="row between"><h2 class="sh-t">Caféine</h2><button class="link" data-a="cafEditMode">${CFS.edit ? 'Terminé' : '✏️ Modifier les sortes'}</button></div>
+    <p class="muted sm mb">${CFS.edit ? 'Change le nom ou les mg selon TES canettes. C’est sauvegardé pour les prochaines fois.' : 'Tape une boisson pour l’ajouter. Les mg sont des estimations, modifie-les si ta canette dit autre chose.'}</p>
+    ${L.map(p => CFS.edit
       ? `<div class="cafrow"><input data-i="cafP" data-id="${p.id}" data-k="name" value="${esc(p.name)}"><input inputmode="numeric" data-i="cafP" data-id="${p.id}" data-k="mg" value="${p.mg}" class="mg"><span class="muted sm">mg</span><button class="icon sm red" data-a="cafDelP" data-id="${p.id}">${IC.x}</button></div>`
       : `<button class="li tap" data-a="cafAdd" data-id="${p.id}"><div class="grow"><b>${esc(p.name)}</b>${c[p.id] ? `<div class="muted sm">${c[p.id]}× </div>` : ''}</div><b>${fmt(p.mg)} mg</b></button>`).join('')}
     <h3 class="mt">Nouvelle sorte</h3>
-    <div class="cafrow"><input data-i="cfNew" data-k="name" value="${esc(CF.name)}" placeholder="ex. Monster Pêche"><input inputmode="numeric" data-i="cfNew" data-k="mg" value="${esc(CF.mg)}" placeholder="165" class="mg"><span class="muted sm">mg</span></div>
+    <div class="cafrow"><input data-i="cfNew" data-k="name" value="${esc(CFS.name)}" placeholder="ex. Monster Pêche"><input inputmode="numeric" data-i="cfNew" data-k="mg" value="${esc(CFS.mg)}" placeholder="165" class="mg"><span class="muted sm">mg</span></div>
     <div class="grid2 mt8"><button class="btn" data-a="cafNew" data-log="0">Enregistrer</button><button class="btn acc" data-a="cafNew" data-log="1">Enregistrer + ajouter</button></div>
     <h3 class="mt">Limite quotidienne</h3>
     <div class="logrow"><input inputmode="numeric" data-i="cafLim" value="${S.settings.cafLimit || 400}"><span class="muted sm" style="align-self:center">mg / jour</span></div>
     <p class="muted sm mt8">Santé Canada recommande max 400 mg par jour pour un adulte.</p>`;
 }
-A.cafEditMode = () => { CF.edit = !CF.edit; paintSheet(); };
+A.cafEditMode = () => { CFS.edit = !CFS.edit; paintSheet(); };
 I.cafP = el => { const p = S.cafPresets.find(x => x.id === el.dataset.id); if (!p) return; if (el.dataset.k === 'mg') { const v = Math.round(num(el.value)); if (v >= 0) p.mg = v; } else if (el.value.trim()) p.name = el.value.trim(); save(); };
 A.cafDelP = el => { S.cafPresets = S.cafPresets.filter(x => x.id !== el.dataset.id); save(); paintSheet(); };
-I.cfNew = el => CF[el.dataset.k] = el.value;
+I.cfNew = el => CFS[el.dataset.k] = el.value;
 I.cafLim = el => { const v = Math.round(num(el.value)); if (v > 0) { S.settings.cafLimit = v; save(); } };
 A.cafNew = el => {
-  const name = CF.name.trim(), mg = Math.round(num(CF.mg));
+  const name = CFS.name.trim(), mg = Math.round(num(CFS.mg));
   if (!name || !(mg >= 0)) return toast('Entre un nom et les mg');
-  const p = { id: 'cp_' + uid(), name, mg }; S.cafPresets.unshift(p); CF.name = ''; CF.mg = ''; save();
+  const p = { id: 'cp_' + uid(), name, mg }; S.cafPresets.unshift(p); CFS.name = ''; CFS.mg = ''; save();
   if (el.dataset.log === '1') { cafLog(p); closeAllSheets(); render(); } else { paintSheet(); toast('Ajouté à tes sortes ✅', 1200); }
 };
 let CE = null;

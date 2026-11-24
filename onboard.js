@@ -12,10 +12,13 @@ async function initAuth() {
     await m.init({
       getState: () => S,
       setState: r => { const ui = S.ui; S = r; S.ui = ui; migrateState(); rebuildEx(); saveNow(); render(); toast('Données synchronisées ☁️'); },
-      onUser: u => { AUTH.user = u; onAuthUser(u); },
+      onUser: u => { AUTH.user = u; AUTH.ready = true; onAuthUser(u); },
+      mergeSteps: obj => { S.steps = S.steps || {}; let ch = false; Object.keys(obj || {}).forEach(k => { if ((+obj[k] || 0) > (S.steps[k] || 0)) { S.steps[k] = +obj[k]; ch = true; } }); if (ch) { save(); render(); } },
       onSynced: t => { AUTH.lastSync = t; const el = $('#syncTxt'); if (el) el.textContent = syncLabel(); },
       toast
     });
+    let lastR = 0;
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && AUTH.user && Date.now() - lastR > 15000) { lastR = Date.now(); m.refresh().catch(() => { }); } });
   } catch (e) { console.warn('Auth indisponible', e); }
 }
 const syncLabel = () => AUTH.lastSync ? `Synchro auto · dernière à ${new Date(AUTH.lastSync).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' })}` : 'Synchro auto activée';
@@ -295,7 +298,8 @@ function notifHTML() {
       : `<button class="btn block acc" data-a="enableNotifs">🔔 Activer les notifications</button><p class="muted sm mt8">Il faut être connecté à ton compte et ouvrir Lockin à partir de l’icône sur ton écran d’accueil.</p>`}
     ${tg('water', '💧 Eau', 'Si t’es en retard sur ton objectif (10 h à 20 h)')}
     ${tg('food', '🍗 Bouffe', 'À 13 h et 19 h si t’as pas assez mangé')}
-    ${tg('supps', '💊 Suppléments', 'À l’heure choisie si c’est pas coché (+ 21 h)')}
+    ${tg('supps', '💊 Suppléments', 'À l’heure choisie si c’est pas coché')}
+    ${tg('forgot', '📝 Oublis', '21 h : ce qui manque aujourd’hui · 9 h : si hier est incomplet')}
     ${notifOn() ? `<button class="btn block ghost sm mt8" data-a="enableNotifs">Réactiver / réparer les notifications</button>` : ''}`;
 }
 C.notifTog = el => { S.settings.notif = S.settings.notif || {}; S.settings.notif[el.dataset.k] = el.checked; save(); };
@@ -328,4 +332,5 @@ A.enableNotifs = async () => {
 render();
 if (!S.settings.profileDone) openWelcome();
 initAuth();
+handleLink();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => { });

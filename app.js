@@ -1,6 +1,6 @@
 'use strict';
 /* ===== LOCKIN — cœur de l'app ===== */
-const VERSION = '1.7.0';
+const VERSION = '1.9.0';
 const KEY = 'lockin_v1';
 
 /* ---------- utilitaires ---------- */
@@ -37,11 +37,11 @@ function defaultState() {
     settings: {
       name: '', unit: 'lb', weeklyTarget: 4, rest: 90, barWeight: 45, increment: 5, sound: true,
       goals: { cal: 2500, p: 180, c: 260, f: 75, water: 3000 },
-      cafLimit: 400, goalWeight: null, height: null, age: null, sex: 'h', activity: 1.55, goalType: 'maintain', onboarded: false
+      cafLimit: 400, trackCF: true, dynCal: false, calAdj: null, goalWeight: null, height: null, age: null, sex: 'h', activity: 1.55, goalType: 'maintain', onboarded: false
     },
     exercises: [], routines: presetPack('ppl'), workouts: [],
     body: [], meas: [], photos: [], foods: [], log: {}, water: {},
-    manualPRs: {}, supps: [{ id: 'creatine', name: 'Créatine', dose: '5 g', hour: 20 }], suppLog: {}, pushCfg: null,
+    manualPRs: {}, bottles: [{ id: 'b1', name: 'Ma bouteille', ml: 750 }], dayTemplate: [], steps: {}, goalsByDay: {}, supps: [{ id: 'creatine', name: 'Créatine', dose: '5 g', hour: 20 }], suppLog: {}, pushCfg: null,
     caf: {}, cafPresets: [
       { id: 'cp_cafe', name: 'Café filtre (250 ml)', mg: 95 }, { id: 'cp_tim_m', name: 'Café Tim Hortons moyen', mg: 205 },
       { id: 'cp_tim_p', name: 'Café Tim Hortons petit', mg: 140 }, { id: 'cp_espresso', name: 'Espresso (1 shot)', mg: 63 },
@@ -330,7 +330,7 @@ const VIEWS = {}, POST = {}, A = {}, I = {}, C = {};
 const TITLES = { home: 'Lockin', train: 'Entraînement', progress: 'Progrès', nutrition: 'Nutrition', body: 'Corps' };
 
 VIEWS.home = () => {
-  const now = new Date(), g = S.settings.goals, t = S.settings.weeklyTarget;
+  const now = new Date(), g = (typeof dayGoals === 'function' ? dayGoals(dk()) : S.settings.goals), t = S.settings.weeklyTarget;
   const ws = startOfWeek(now), wc = weekCount(ws), dm = dayMap();
   const streak = weekStreak(), cons = consistency(12);
   const nx = nextRoutine();

@@ -444,3 +444,13 @@ details summary{cursor:pointer;padding:4px 0}
 .cd.rest{background:rgba(200,255,46,.12);color:var(--text)}
 .cd.miss{background:rgba(255,69,58,.14);color:#ff8a82}
 .leg .lr{background:rgba(200,255,46,.2)}.leg .lm{background:rgba(255,69,58,.3)}
+/* mode lazy */
+.stepcard{display:flex;align-items:center;gap:8px;padding:12px 14px}
+.bottles{display:flex;flex-wrap:wrap;gap:8px}
+.bottles .btn{flex:1 1 45%;flex-direction:column;gap:0;padding:12px 10px}
+.bottles .btn small{font-size:12px;opacity:.7;font-weight:700}
+.actrow{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 4px;padding:0 16px}
+.actrow::-webkit-scrollbar{display:none}
+.actrow .chip{padding:10px 14px;font-size:13.5px}
+.ybar{border-color:rgba(255,159,10,.4);background:linear-gradient(135deg,rgba(255,159,10,.1),var(--card))}
+.card.inset.hl{border-color:var(--acc)}
