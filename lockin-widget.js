@@ -1,11 +1,11 @@
 // Lockin — widget « Gym » pour Scriptable (iOS)
-// 150 jours, un après l'autre : le plus vieux en haut à gauche → aujourd'hui en bas à droite.
+// 75 jours, un après l'autre : le plus vieux en haut à gauche → aujourd'hui en bas à droite.
 // 1re fois : lance ce script dans Scriptable pour te connecter (courriel + mot de passe Lockin).
 
 const API_KEY = "AIzaSyD-ntbSenTgY07B48MSNNFBw5EkIQm0gaI";
 const PROJECT = "lockin-db6d3";
 const APP_URL = "https://lavageld.github.io/lockin/";
-const DAYS = 150;
+const DAYS = 75;
 const COLOR = "#FF6B57";
 
 // ---------- dates ----------
@@ -87,9 +87,10 @@ async function loadState() {
 }
 
 // ---------- dessin ----------
-function drawGrid(st, keys, cols, widthPt) {
+function drawGrid(st, keys, cols, widthPt, maxH) {
   const scale = 3, rows = Math.ceil(keys.length / cols);
-  const cell = (widthPt * scale) / (cols + (cols - 1) * 0.28), gap = cell * 0.28;
+  const cell = Math.min((widthPt * scale) / (cols + (cols - 1) * 0.28), maxH ? (maxH * scale) / (rows + (rows - 1) * 0.28) : 1e9), gap = cell * 0.28;
+  widthPt = (cols * cell + (cols - 1) * gap) / scale;
   const ctx = new DrawContext();
   ctx.size = new Size(widthPt * scale, rows * cell + (rows - 1) * gap);
   ctx.opaque = false; ctx.respectScreenScale = false;
@@ -106,7 +107,7 @@ function drawGrid(st, keys, cols, widthPt) {
     ctx.setFillColor(s === "gym" || s === "rest" || s === "swap" ? new Color(COLOR) : s === "miss" ? new Color("#FF453A", 0.32) : new Color("#FFFFFF", 0.06));
     ctx.fillPath();
   });
-  return { img: ctx.getImage(), h: (rows * cell + (rows - 1) * gap) / scale };
+  return { img: ctx.getImage(), w: widthPt, h: (rows * cell + (rows - 1) * gap) / scale };
 }
 
 function build(S, family) {
@@ -127,15 +128,15 @@ function build(S, family) {
   const pill = head.addStack(); pill.backgroundColor = new Color("#1C1C1F"); pill.cornerRadius = 10; pill.setPadding(3, 8, 3, 8);
   const s = pill.addText(`🔥 ${streak}`); s.font = Font.boldSystemFont(small ? 12 : big ? 16 : 13); s.textColor = Color.white();
   w.addSpacer(small ? 6 : 8);
-  const cols = family === "medium" ? 25 : 15;
+  const cols = 15;
   const widthPt = small ? 127 : big ? 301 : 301;
-  const g = drawGrid(st, keys, cols, widthPt);
-  const im = w.addImage(g.img); im.imageSize = new Size(widthPt, g.h); im.centerAlignImage();
+  const g = drawGrid(st, keys, cols, widthPt, family === "medium" ? 84 : null);
+  const im = w.addImage(g.img); im.imageSize = new Size(g.w, g.h); im.centerAlignImage();
   w.addSpacer();
   const foot = w.addStack(); foot.centerAlignContent();
   const p1 = foot.addText(`${pct} %`); p1.font = Font.boldSystemFont(small ? 11 : 13); p1.textColor = Color.white();
   const p2 = foot.addText(`  (${good}/${good + bad})`); p2.font = Font.systemFont(small ? 10 : 12); p2.textColor = new Color("#8E8E93");
-  if (!small) { foot.addSpacer(); const l = foot.addText("150 jours"); l.font = Font.systemFont(11); l.textColor = new Color("#8E8E93"); }
+  if (!small) { foot.addSpacer(); const l = foot.addText(`${DAYS} jours`); l.font = Font.systemFont(11); l.textColor = new Color("#8E8E93"); }
   w.refreshAfterDate = new Date(Date.now() + 30 * 60 * 1000);
   return w;
 }
