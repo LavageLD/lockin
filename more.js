@@ -580,6 +580,7 @@ A.settings = () => openSheet(() => {
   ${notifHTML()}
   <h3 class="mt">Profil</h3>
   <button class="li tap" data-a="redoQuiz">🎯 Mon profil & mon plan<span class="grow"></span><span class="chev">›</span></button>
+  ${typeof injHTML === 'function' ? injHTML() : ''}
   <label class="fl mt8">Ton nom<input data-i="stName" value="${esc(s.name)}" placeholder="Prénom"></label>
   <div class="grid2">
     <label class="fl">Unité de poids<select data-i="stUnit"><option value="lb" ${s.unit === 'lb' ? 'selected' : ''}>Livres (lb)</option><option value="kg" ${s.unit === 'kg' ? 'selected' : ''}>Kilos (kg)</option></select></label>
