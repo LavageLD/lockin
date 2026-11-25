@@ -23,7 +23,8 @@ function calAdj() { if (S.settings.calAdj != null) return S.settings.calAdj; con
 function dayGoals(k) {
   const g = S.settings.goals; if (!S.settings.dynCal) return g;
   const e = energy(k); if (!e) return g;
-  const cal = Math.round((e.maint + calAdj()) / 10) * 10, c = Math.max(50, Math.round((cal - g.p * 4 - g.f * 9) / 4));
+  // ton objectif de base (0 pas) + les calories brûlées en marchant : les pas ajoutent seulement
+  const cal = Math.round((g.cal + e.stepsK) / 10) * 10, c = Math.max(50, Math.round((cal - g.p * 4 - g.f * 9) / 4));
   S.goalsByDay = S.goalsByDay || {}; S.goalsByDay[k] = { cal, c };
   return { ...g, cal, c, dyn: e };
 }
@@ -126,15 +127,22 @@ function mcCalc() {
   const w = num(MC.w), kg = w ? (u() === 'kg' ? w : w * 0.45359237) : null;
   return energy(dk(), { body: { kg, h: num(MC.h), age: num(MC.age), sex: MC.sex, bf: num(MC.bf) || null }, steps: num(MC.steps) || 0, wmin: num(MC.wmin) || 0 });
 }
+function avgWmin() { const d = (S.settings.gymDays || []).length || 4; return Math.round(d * 60 / 7); }
+function mcBase() { // objectif sans pas : métabolisme + vie de tous les jours + moyenne de tes séances
+  const w = num(MC.w), kg = w ? (u() === 'kg' ? w : w * 0.45359237) : null;
+  const e0 = energy(dk(), { body: { kg, h: num(MC.h), age: num(MC.age), sex: MC.sex, bf: num(MC.bf) || null }, steps: 0, wmin: avgWmin() });
+  return e0 ? e0.maint + (+MC.adj) : 0;
+}
 function mcOut() {
   const e = mcCalc(); if (!e) return `<p class="muted sm">Entre ton poids, ta grandeur pis ton âge (ou ton % de gras).</p>`;
-  const goal = Math.round((e.maint + (+MC.adj)) / 10) * 10;
+  const goal = Math.round((mcBase() + e.stepsK) / 10) * 10;
   return `<div class="card inset">
     <div class="hrow"><span>Métabolisme de base${num(MC.bf) ? ' (avec % gras)' : ''}</span><b>${fmt(e.bmr)}</b></div>
     <div class="hrow"><span>Vie de tous les jours</span><b>+${fmt(e.base - e.bmr)}</b></div>
     <div class="hrow"><span>👟 ${fmt(e.steps)} pas</span><b>+${fmt(e.stepsK)}</b></div>
     <div class="hrow"><span>🏋️ ${fmt(e.wmin)} min d’entraînement</span><b>+${fmt(e.workK)}</b></div>
     <div class="hrow"><b>Maintien aujourd’hui</b><b class="ok">${fmt(e.maint)} cal</b></div>
+    <div class="hrow"><span>Objectif de base (0 pas)</span><b>${fmt(Math.round(mcBase() / 10) * 10)}</b></div>
     <div class="hrow"><b>Ton objectif aujourd’hui</b><b>${fmt(goal)} cal</b></div></div>
     <p class="muted sm mt8">Chaque 1 000 pas ≈ ${fmt(e.stepsK && e.steps ? e.stepsK / e.steps * 1000 : 0.55 * (num(MC.w) ? (u() === 'kg' ? num(MC.w) : num(MC.w) * 0.4536) : 70))} cal pour toi. Estimation : ajuste selon ton poids sur 2-3 semaines.</p>`;
 }
@@ -159,7 +167,7 @@ A.mcSave = () => {
   if (w) { const b = S.body.find(x => x.d === k); if (b) b.w = w; else { S.body.push({ d: k, w }); S.body.sort((a, c) => a.d < c.d ? -1 : 1); } }
   if (num(MC.bf)) { let m = S.meas.find(x => x.d === k); if (!m) { m = { d: k }; S.meas.push(m); S.meas.sort((a, c) => a.d < c.d ? -1 : 1); } m.bf = num(MC.bf); }
   if (MC.steps !== '') (S.steps = S.steps || {})[k] = Math.round(num(MC.steps) || 0);
-  if (!MC.dyn) { const cal = Math.round((e.maint + s.calAdj) / 10) * 10; s.goals.cal = cal; s.goals.c = Math.max(50, Math.round((cal - s.goals.p * 4 - s.goals.f * 9) / 4)); }
+  { const cal = Math.round(mcBase() / 10) * 10; s.goals.cal = cal; s.goals.c = Math.max(50, Math.round((cal - s.goals.p * 4 - s.goals.f * 9) / 4)); }
   save(); closeSheet(); render(); toast(MC.dyn ? 'Objectif ajusté tout seul selon tes pas 👟' : 'Objectif enregistré');
 };
 
