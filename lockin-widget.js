@@ -26,23 +26,25 @@ function habitStart(S) {
   return c.length ? c.sort()[0] : dk(new Date());
 }
 function gymStatuses(S, weeks) {
-  const today = dk(new Date()), start = habitStart(S);
-  const gd = Array.isArray(S.settings.gymDays) && S.settings.gymDays.length ? S.settings.gymDays : defaultGymDays(S.settings.weeklyTarget);
+  // flexible : (7 − séances visées) jours de repos par semaine, n'importe quel jour
+  const today = dk(new Date()), start = habitStart(S), t = S.settings.weeklyTarget || 4, budget = Math.max(0, 7 - t), R = S.restDays || {};
   const did = new Set((S.workouts || []).map(w => dk(w.start))), out = {}, curWs = startOfWeek(new Date()), W = [];
   for (let w = weeks; w >= 0; w--) {
     const ws = addDays(curWs, -7 * w);
-    const days = Array.from({ length: 7 }, (_, i) => { const k = dk(addDays(ws, i)); return { k, i, planned: gd.includes(i), did: did.has(k) }; });
+    const days = Array.from({ length: 7 }, (_, i) => { const k = dk(addDays(ws, i)); return { k, did: did.has(k) }; });
+    const off = days.filter(d => !d.did && d.k >= start && (d.k < today || (d.k === today && R[d.k])));
+    off.sort((x, y) => (R[y.k] ? 1 : 0) - (R[x.k] ? 1 : 0) || (x.k < y.k ? -1 : 1));
+    const restSet = new Set(off.slice(0, budget).map(d => d.k));
     days.forEach(d => {
       if (d.k > today) out[d.k] = d.did ? "gym" : "future";
       else if (d.k < start) out[d.k] = "off";
       else if (d.did) out[d.k] = "gym";
-      else if (!d.planned) out[d.k] = "rest";
+      else if (restSet.has(d.k)) out[d.k] = "rest";
       else if (d.k === today) out[d.k] = "pending";
       else out[d.k] = "skip";
     });
-    let extra = days.filter(d => d.did && !d.planned && d.k >= start).length;
-    days.filter(d => out[d.k] === "skip").forEach(d => { if (extra > 0) { extra--; out[d.k] = "swap"; } });
-    W.push({ extra, left: days.filter(d => out[d.k] === "skip"), current: w === 0 });
+    const n = days.filter(d => d.did && d.k >= start).length;
+    W.push({ extra: Math.max(0, n - t), left: days.filter(d => out[d.k] === "skip"), current: w === 0 });
   }
   for (let w = 0; w < W.length; w++) {
     const next = W[w + 1];
@@ -144,8 +146,22 @@ function message(txt) {
   return w;
 }
 
+// ---------- mise à jour automatique du script ----------
+async function selfUpdate() {
+  try {
+    const code = await new Request(APP_URL + "lockin-widget.js?" + Date.now()).loadString();
+    if (!code.startsWith("// Lockin — widget") || code.length < 3000) return;
+    const ic = FileManager.iCloud(), lc = FileManager.local();
+    for (const f of [ic, lc]) {
+      let p; try { p = f.joinPath(f.documentsDirectory(), Script.name() + ".js"); } catch (e) { continue; }
+      if (f.fileExists(p)) { if (f.readString(p) !== code) f.writeString(p, code); return; }
+    }
+  } catch (e) { }
+}
+
 // ---------- main ----------
 async function main() {
+  await selfUpdate();
   const family = config.widgetFamily || "medium";
   if (!config.runsInWidget) {
     if (Keychain.contains("lockin_email")) {
