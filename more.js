@@ -156,12 +156,13 @@ function simpleStatuses(weeks, okFn) {
 }
 const GOOD = new Set(['gym', 'rest', 'swap', 'ok']);
 function habitStats(st) {
-  const ks = Object.keys(st).sort(); let good = 0, bad = 0; ks.forEach(k => { if (GOOD.has(st[k])) good++; else if (st[k] === 'miss') bad++; });
+  const from = dk(addDays(startOfWeek(new Date()), -7 * (habitWeeks() - 1))), ks = Object.keys(st).filter(k => k >= from).sort(); let good = 0, bad = 0; ks.forEach(k => { if (GOOD.has(st[k])) good++; else if (st[k] === 'miss') bad++; });
   let streak = 0; for (let i = ks.length - 1; i >= 0; i--) { const s = st[ks[i]]; if (s === 'future' || s === 'pending') continue; if (GOOD.has(s)) streak++; else break; }
   return { good, bad, streak, pct: good + bad ? Math.round(good / (good + bad) * 100) : null };
 }
+function habitWeeks() { const w = Math.min(window.innerWidth || 390, 1000); return Math.max(12, Math.min(52, Math.floor((w - 100) / 17))); }
 function habitsList() {
-  const g = S.settings.goals, W = 20, L = [];
+  const g = S.settings.goals, W = habitWeeks(), L = [];
   L.push({ key: 'gym', name: 'Gym', icon: '🏋️', color: '#FF6B57', st: gymStatuses(W), legend: true });
   if (S.settings.trackWater !== false) L.push({ key: 'water', name: 'Eau', icon: '💧', color: '#4DA3FF', st: simpleStatuses(W, k => (S.water[k] || 0) >= g.water * 0.95), sub: `objectif ${fmt(g.water / 1000, 1)} L` });
   L.push({ key: 'prot', name: 'Protéines', icon: '🍗', color: '#FF9F0A', st: simpleStatuses(W, k => dayTotals(k).p >= g.p * 0.95), sub: `objectif ${g.p} g` });
@@ -169,18 +170,19 @@ function habitsList() {
   return L;
 }
 function habitGrid(h) {
-  const ks = Object.keys(h.st).sort();
-  return `<div class="hgrid"><div class="hlabels">${DOW.map(d => `<span>${d}</span>`).join('')}</div><div class="hcells">${ks.map(k => { const s = h.st[k]; return `<i class="hs-${s}" title="${k}"></i>`; }).join('')}</div></div>`;
+  const W = habitWeeks(), from = dk(addDays(startOfWeek(new Date()), -7 * (W - 1)));
+  const ks = Object.keys(h.st).filter(k => k >= from).sort().slice(0, W * 7);
+  return `<div class="hgrid"><div class="hlabels">${DOW.map(d => `<span>${d}</span>`).join('')}</div><div class="hcells" style="grid-template-columns:repeat(${W},minmax(0,1fr))">${ks.map(k => { const s = h.st[k]; return `<i class="hs-${s}" title="${k}"></i>`; }).join('')}</div></div>`;
 }
 function habitsHTML() {
   const gd = gymDays(), todayIdx = (new Date().getDay() + 6) % 7, plannedToday = gd.includes(todayIdx);
-  return `<div class="card"><div class="row between"><div><b>Ton horaire</b><div class="muted sm">${gd.map(i => DAYNAMES[i].slice(0, 3)).join(', ')} · les autres jours = rest days</div></div><button class="link" data-a="gymSched">Modifier</button></div>
-      <div class="sm mt8">Aujourd’hui : <b class="txt">${doneToday() ? '✅ séance faite' : plannedToday ? '🏋️ jour de gym' : '😴 rest day'}</b></div></div>
+  return `<div class="card"><div class="row between"><div><b>Ton horaire</b><div class="muted sm">${S.settings.weeklyTarget} séances/sem. · ${restBudget()} rest days n’importe quel jour · prévu : ${gd.map(i => DAYNAMES[i].slice(0, 3)).join(', ')}</div></div><button class="link" data-a="gymSched">Modifier</button></div>
+      <div class="sm mt8">Aujourd’hui : <b class="txt">${doneToday() ? '✅ séance faite' : (S.restDays || {})[dk()] ? '😴 rest day ✓' : plannedToday ? '🏋️ jour de gym' : '😴 rest prévu'}</b> · rests cette semaine ${restsThisWeek()}/${restBudget()}</div></div>
     ${habitsList().map(h => { const s = habitStats(h.st); return `<div class="card habit" style="--hc:${h.color}">
       <div class="row between"><div><b class="habit-n">${h.icon} ${esc(h.name)}</b>${h.sub ? `<div class="muted sm">${h.sub}</div>` : ''}</div><span class="streakpill">🔥 ${s.streak}</span></div>
       ${habitGrid(h)}
       <div class="row between sm mt8"><span><b>${s.pct == null ? '–' : s.pct + ' %'}</b> <span class="muted">(${s.good}/${s.good + s.bad})</span></span>
-      ${h.legend ? `<span class="hleg"><i class="hs-gym"></i>gym <i class="hs-rest"></i>repos <i class="hs-pending"></i>à reprendre <i class="hs-miss"></i>manqué</span>` : `<span class="hleg"><i class="hs-ok"></i>atteint <i class="hs-miss"></i>manqué</span>`}</div>
+      ${h.legend ? `<span class="hleg"><i class="hs-gym"></i>gym / repos <i class="hs-pending"></i>à reprendre <i class="hs-miss"></i>manqué</span>` : `<span class="hleg"><i class="hs-ok"></i>atteint <i class="hs-miss"></i>manqué</span>`}</div>
     </div>`; }).join('')}
     <p class="muted sm">Gym : t’as droit à ${restBudget()} rest days par semaine (7 − ${S.settings.weeklyTarget} séances), n’importe quel jour. Un rest de trop devient « à reprendre » : fais une séance de plus que ton objectif la semaine d’après (ex. 4/5 puis 6/5 = deux semaines réussies). Il devient rouge seulement si tu l’as pas repris à la fin de la semaine suivante.</p>`;
 }
@@ -743,3 +745,6 @@ I.ceMg = el => { const v = Math.round(num(el.value)); if (v >= 0) CE.x.mg = v; }
 C.ceT = el => { const [h, mi] = (el.value || '').split(':').map(Number); if (isNaN(h)) return; const d = parseDk(CE.k); d.setHours(h, mi || 0, 0, 0); CE.x.t = d.getTime(); };
 A.ceSave = () => { S.caf[CE.k].sort((a, b) => a.t - b.t); save(); closeSheet(); render(); };
 A.ceDel = () => { S.caf[CE.k] = S.caf[CE.k].filter(x => x !== CE.x); save(); closeSheet(); render(); };
+
+// réajuste les grilles quand l'écran change (rotation, fenêtre d'ordi)
+let _rsT = null, _rsW = window.innerWidth; window.addEventListener('resize', () => { clearTimeout(_rsT); _rsT = setTimeout(() => { if (Math.abs(window.innerWidth - _rsW) > 40) { _rsW = window.innerWidth; render(); } }, 250); });
