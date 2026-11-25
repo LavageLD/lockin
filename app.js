@@ -1,6 +1,6 @@
 'use strict';
 /* ===== LOCKIN — cœur de l'app ===== */
-const VERSION = '1.10.0';
+const VERSION = '1.11.0';
 const KEY = 'lockin_v1';
 
 /* ---------- utilitaires ---------- */
@@ -366,7 +366,7 @@ VIEWS.home = () => {
     </div>
   </div>
   ${S.supps && S.supps.length ? `<div class="card"><h3>Suppléments aujourd’hui <button class="link" data-a="suppManage">Gérer</button></h3>${suppHTML(dk())}</div>` : ''}
-  <div class="card"><h3>Coach</h3>${insights().map(x => `<div class="ins"><span class="ins-i">${x.i}</span><div><b>${esc(x.t)}</b><div class="muted sm">${esc(x.s)}</div></div></div>`).join('')}</div>
+  <div class="card"><h3>En bref</h3>${insights().map(x => `<div class="ins"><span class="ins-i">${x.i}</span><div><b>${esc(x.t)}</b><div class="muted sm">${esc(x.s)}</div></div></div>`).join('')}</div>
   <div class="card"><h3>Récupération musculaire</h3>${recoveryHTML()}</div>`;
 };
 POST.home = () => {
