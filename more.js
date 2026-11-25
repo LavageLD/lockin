@@ -602,7 +602,8 @@ A.settings = () => openSheet(() => {
   <button class="btn block danger-ghost mt8" data-a="resetAll">Tout effacer</button>
   <h3 class="mt">Installer sur l’écran d’accueil</h3>
   <p class="muted sm">iPhone : ouvre le lien dans <b>Safari</b> → bouton Partager → <b>Sur l’écran d’accueil</b>.<br>Android : Chrome → ⋮ → <b>Installer l’application</b>.</p>
-  <p class="muted sm center mt">Lockin v${VERSION}</p>`;
+  <p class="muted sm center mt">Lockin v${VERSION}</p>
+  <div data-a="sx" style="width:72px;height:72px;margin:14px 0 -10px -6px;touch-action:manipulation"></div>`;
 }, { full: true, onClose: () => render() });
 I.stName = el => { S.settings.name = el.value.trim(); save(); };
 I.stNum = el => { const v = num(el.value); if (v != null && v > 0) { S.settings[el.dataset.k] = v; save(); } };
