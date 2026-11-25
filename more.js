@@ -87,26 +87,31 @@ function habitStart() {
   return c.length ? c.sort()[0] : dk();
 }
 // Statut gym par jour : gym, rest, swap (séance reprise ailleurs dans la semaine ou la suivante), pending, miss, future, off
+function restBudget() { return Math.max(0, 7 - (S.settings.weeklyTarget || 4)); }
 function gymStatuses(weeks) {
-  const today = dk(), start = habitStart(), gd = gymDays(), did = new Set(S.workouts.map(w => dk(w.start))), out = {};
+  // flexible : chaque semaine t'as droit à (7 − séances visées) jours de repos, n'importe quel jour
+  const today = dk(), start = habitStart(), did = new Set(S.workouts.map(w => dk(w.start))), out = {}, t = S.settings.weeklyTarget || 4, R = S.restDays || {};
   const curWs = startOfWeek(new Date()), W = [];
   for (let w = weeks; w >= 0; w--) { // une semaine de plus avant pour le report
     const ws = addDays(curWs, -7 * w);
-    const days = Array.from({ length: 7 }, (_, i) => { const k = dk(addDays(ws, i)); return { k, i, planned: gd.includes(i), did: did.has(k) }; });
+    const days = Array.from({ length: 7 }, (_, i) => { const k = dk(addDays(ws, i)); return { k, did: did.has(k) }; });
+    let budget = restBudget();
+    // les rests cochés passent en premier, ensuite les autres journées sans gym dans l'ordre
+    const off = days.filter(d => !d.did && d.k >= start && (d.k < today || (d.k === today && R[d.k])));
+    off.sort((x, y) => (R[y.k] ? 1 : 0) - (R[x.k] ? 1 : 0) || (x.k < y.k ? -1 : 1));
+    const restSet = new Set(off.slice(0, budget).map(d => d.k));
     days.forEach(d => {
       if (d.k > today) out[d.k] = d.did ? 'gym' : 'future';
       else if (d.k < start) out[d.k] = 'off';
       else if (d.did) out[d.k] = 'gym';
-      else if (!d.planned) out[d.k] = 'rest';
+      else if (restSet.has(d.k)) out[d.k] = 'rest';
       else if (d.k === today) out[d.k] = 'pending';
       else out[d.k] = 'skip';
     });
-    const skips = days.filter(d => out[d.k] === 'skip');
-    let extra = days.filter(d => d.did && !d.planned && d.k >= start).length;
-    skips.forEach(d => { if (extra > 0) { extra--; out[d.k] = 'swap'; } });
-    W.push({ days, extra, left: skips.filter(d => out[d.k] === 'skip'), current: w === 0 });
+    const n = days.filter(d => d.did && d.k >= start).length;
+    W.push({ days, extra: Math.max(0, n - t), left: days.filter(d => out[d.k] === 'skip'), current: w === 0 });
   }
-  // report : les séances en extra d'une semaine rattrapent celles manquées la semaine d'avant
+  // rattrapage : les séances en plus de ton objectif la semaine d'après reprennent celles manquées
   for (let w = 0; w < W.length; w++) {
     const next = W[w + 1];
     W[w].left.forEach(d => {
@@ -116,6 +121,14 @@ function gymStatuses(weeks) {
   }
   return out;
 }
+function restsThisWeek() { const st = gymStatuses(0); return Object.values(st).filter(s => s === 'rest').length; }
+A.restToday = () => {
+  const k = dk(); S.restDays = S.restDays || {};
+  if (S.restDays[k]) { delete S.restDays[k]; save(); render(); return toast('Rest enlevé'); }
+  const used = restsThisWeek(), b = restBudget();
+  S.restDays[k] = true; save(); render();
+  toast(used < b ? `😴 Rest day (${used + 1}/${b} cette semaine)` : `😴 Rest noté — t’as dépassé tes ${b} rests, faudra la reprendre`, 2600);
+};
 weekStreak = function () {
   const st = gymStatuses(104), t = S.settings.weeklyTarget; let ws = startOfWeek(new Date()), n = 0;
   const weekDays = w => Array.from({ length: 7 }, (_, i) => st[dk(addDays(w, i))]);
@@ -169,7 +182,7 @@ function habitsHTML() {
       <div class="row between sm mt8"><span><b>${s.pct == null ? '–' : s.pct + ' %'}</b> <span class="muted">(${s.good}/${s.good + s.bad})</span></span>
       ${h.legend ? `<span class="hleg"><i class="hs-gym"></i>gym <i class="hs-rest"></i>repos <i class="hs-pending"></i>à reprendre <i class="hs-miss"></i>manqué</span>` : `<span class="hleg"><i class="hs-ok"></i>atteint <i class="hs-miss"></i>manqué</span>`}</div>
     </div>`; }).join('')}
-    <p class="muted sm">Gym : un jour de gym skippé est rattrapé si tu t’entraînes un autre jour de la même semaine ou de la semaine d’après (ex. 4/5 puis 6/5 = deux semaines réussies). Il devient rouge seulement si tu l’as pas repris à la fin de la semaine suivante.</p>`;
+    <p class="muted sm">Gym : t’as droit à ${restBudget()} rest days par semaine (7 − ${S.settings.weeklyTarget} séances), n’importe quel jour. Un rest de trop devient « à reprendre » : fais une séance de plus que ton objectif la semaine d’après (ex. 4/5 puis 6/5 = deux semaines réussies). Il devient rouge seulement si tu l’as pas repris à la fin de la semaine suivante.</p>`;
 }
 let GS = null;
 A.gymSched = () => {

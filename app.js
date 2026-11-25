@@ -1,6 +1,6 @@
 'use strict';
 /* ===== LOCKIN — cœur de l'app ===== */
-const VERSION = '1.14.0';
+const VERSION = '1.15.0';
 const KEY = 'lockin_v1';
 
 /* ---------- utilitaires ---------- */
@@ -347,8 +347,10 @@ VIEWS.home = () => {
       <div class="right"><div class="big">${wc}<small>/${t}</small></div><div class="muted sm">cette semaine</div></div>
     </div>
     <div class="week">${week}</div>
-    ${owedCount() ? `<div class="pastbar mt8">🔁 ${owedCount()} séance${owedCount() > 1 ? 's' : ''} à reprendre — fais-la un jour de repos cette semaine ou la semaine prochaine</div>` : ''}
-    <div class="muted sm mt8 center">Aujourd’hui : <b class="txt">${doneToday() ? '✅ séance faite' : gymDays().includes((now.getDay() + 6) % 7) ? '🏋️ jour de gym' : '😴 rest day'}</b></div>
+    ${owedCount() ? `<div class="pastbar mt8">🔁 ${owedCount()} séance${owedCount() > 1 ? 's' : ''} à reprendre — fais une séance de plus que ton objectif cette semaine ou la semaine prochaine</div>` : ''}
+    <div class="muted sm mt8 center">Aujourd’hui : <b class="txt">${doneToday() ? '✅ séance faite' : (S.restDays || {})[dk()] ? '😴 rest day ✓' : gymDays().includes((now.getDay() + 6) % 7) ? '🏋️ jour de gym' : '😴 rest prévu'}</b>
+      ${doneToday() ? '' : `<button class="chip ${(S.restDays || {})[dk()] ? 'on' : ''}" data-a="restToday" style="margin-left:6px">${(S.restDays || {})[dk()] ? 'Annuler' : '😴 Rest day'}</button>`}
+      <div class="muted sm mt8">Rests cette semaine : ${restsThisWeek()}/${restBudget()}</div></div>
     <div class="track mt8"><div class="fill" style="width:${Math.min(100, wc / t * 100)}%"></div></div>
   </div>
   <div class="card"><h3>Constance <span class="pill">${cons}% · 12 sem.</span></h3>${calMonthHTML()}</div>
