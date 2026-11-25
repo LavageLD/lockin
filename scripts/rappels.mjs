@@ -51,7 +51,7 @@ const T = log.reduce((a, x) => ({ cal: a.cal + x.cal * x.q, p: a.p + x.p * x.q }
 const water = (S.water || {})[today] || 0;
 
 // Eau : de 10 h à 20 h aux 2 heures, si en retard de plus de 20 %
-if (N.water !== false && [10, 12, 14, 16, 18, 20].includes(hour) && water < g.water) {
+if (N.water !== false && S.settings.trackWater !== false && [10, 12, 14, 16, 18, 20].includes(hour) && water < g.water) {
   const expected = g.water * Math.min(1, (hour - 8) / 13);
   if (water < expected * 0.8) await send('💧 Bois de l’eau', `T’es à ${L(water, 2)} L — tu devrais être autour de ${L(expected)} L. Prends un grand verre.`, 'water');
 }
@@ -73,7 +73,7 @@ if (N.supps !== false) {
 function missing(k) {
   const m = [];
   if (!((S.log || {})[k] || []).length) m.push('ta bouffe');
-  if (!((S.water || {})[k] > 0)) m.push('ton eau');
+  if (S.settings.trackWater !== false && !((S.water || {})[k] > 0)) m.push('ton eau');
   (S.supps || []).forEach(s => { if (s.hour != null && !(((S.suppLog || {})[k]) || []).includes(s.id)) m.push(s.name.toLowerCase()); });
   return m;
 }

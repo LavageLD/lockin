@@ -150,7 +150,7 @@ function habitStats(st) {
 function habitsList() {
   const g = S.settings.goals, W = 20, L = [];
   L.push({ key: 'gym', name: 'Gym', icon: '🏋️', color: '#FF6B57', st: gymStatuses(W), legend: true });
-  L.push({ key: 'water', name: 'Eau', icon: '💧', color: '#4DA3FF', st: simpleStatuses(W, k => (S.water[k] || 0) >= g.water * 0.95), sub: `objectif ${fmt(g.water / 1000, 1)} L` });
+  if (S.settings.trackWater !== false) L.push({ key: 'water', name: 'Eau', icon: '💧', color: '#4DA3FF', st: simpleStatuses(W, k => (S.water[k] || 0) >= g.water * 0.95), sub: `objectif ${fmt(g.water / 1000, 1)} L` });
   L.push({ key: 'prot', name: 'Protéines', icon: '🍗', color: '#FF9F0A', st: simpleStatuses(W, k => dayTotals(k).p >= g.p * 0.95), sub: `objectif ${g.p} g` });
   (S.supps || []).forEach(s => L.push({ key: 'supp_' + s.id, name: s.name, icon: '💊', color: '#BF5AF2', st: simpleStatuses(W, k => ((S.suppLog || {})[k] || []).includes(s.id)) }));
   return L;
@@ -593,6 +593,7 @@ A.settings = () => openSheet(() => {
   <label class="toggle"><span>Son + vibration fin du repos</span><input type="checkbox" data-i="stSound" ${s.sound ? 'checked' : ''}></label>
   <h3 class="mt">Raccourcis</h3>
   <button class="li tap" data-a="shortcutsHelp">⚡ Raccourcis iPhone : gym auto, bouteille, pas<span class="grow"></span><span class="chev">›</span></button>
+  <label class="toggle"><span>Suivre l’eau<small class="muted" style="display:block;font-weight:500;font-size:12.5px">Off = plus de carte eau, de rappels ni de case dans tes habitudes</small></span><input type="checkbox" data-i="trackWater" ${S.settings.trackWater !== false ? 'checked' : ''}></label>
   <label class="toggle"><span>Suivre glucides + lipides</span><input type="checkbox" data-i="trackCF" ${CF() ? 'checked' : ''}></label>
   <h3 class="mt">Widget</h3>
   <a class="btn block" href="widget.html" target="_blank" rel="noopener">📱 Mettre le widget sur mon écran d’accueil</a>

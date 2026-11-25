@@ -3,6 +3,9 @@
 const APP_URL = 'https://lavageld.github.io/lockin/';
 const CF = () => S.settings.trackCF !== false;
 const macTxt = (p, c, f) => CF() ? `P ${fmt(p)} G ${fmt(c)} L ${fmt(f)}` : `P ${fmt(p)} g prot`;
+const TW = () => S.settings.trackWater !== false;
+C.trackWater = el => { S.settings.trackWater = el.checked; save(); if (SH.length) paintSheet(); render(); toast(el.checked ? 'Eau suivie 💧' : 'Eau pas suivie — ta streak est safe', 1800); };
+A.waterOff = () => { S.settings.trackWater = false; save(); render(); toast('Eau pas suivie — tu peux la remettre dans Réglages', 2200); };
 C.trackCF = el => { S.settings.trackCF = el.checked; save(); if (SH.length) paintSheet(); toast(el.checked ? 'Glucides + lipides affichés' : 'Juste calories + protéines', 1500); };
 
 /* ---------- énergie / maintien ---------- */
@@ -46,7 +49,7 @@ VIEWS.nutrition = () => {
   ${MEALS.map(m => { const it = L.filter(x => x.meal === m), mc = it.reduce((a, x) => a + x.cal * x.q, 0); return `<div class="card meal"><h3>${m} <span class="muted">${fmt(mc)} cal</span></h3>
     ${it.map(x => `<button class="li tap fi" data-a="editFood" data-id="${x.id}"><div class="grow"><b>${esc(x.name)}</b><div class="muted sm">${x.q !== 1 ? fmt(x.q, 2) + ' × ' : ''}${esc(x.serv || 'portion')} · ${macTxt(x.p * x.q, x.c * x.q, x.f * x.q)}</div></div><b>${fmt(x.cal * x.q)}</b></button>`).join('')}
     <button class="btn sm ghost block" data-a="addFood" data-m="${m}">+ Ajouter</button></div>`; }).join('')}
-  ${waterHTML(k, g, wml)}
+  ${TW() ? waterHTML(k, g, wml) : ''}
   <div class="card"><h3>Suppléments <button class="link" data-a="suppManage">Gérer</button></h3>${suppHTML(k)}</div>
   <div class="card">${cafHTML(k)}</div>
   <div class="actrow"><button class="chip" data-a="tplOpen">⚡ Journée type</button><button class="chip" data-a="copyDay">📋 Copier la veille</button><button class="chip" data-a="maintCalc">🧮 Maintien</button><button class="chip" data-a="goals">🎯 Objectifs</button></div>
@@ -88,7 +91,8 @@ function waterHTML(k, g, wml) {
     <button class="link block-link mt8" data-a="waterMore">${open ? 'Moins d’options ▴' : 'Plus d’options ▾'}</button>
     ${open ? `<div class="mt8"><div class="row gap"><button class="btn sm ghost" data-a="water" data-v="-250">−250</button><button class="btn sm ghost grow" data-a="water" data-v="250">+250 ml</button><button class="btn sm ghost grow" data-a="water" data-v="500">+500 ml</button></div>
       <div class="logrow mt8"><input inputmode="numeric" id="waterIn" placeholder="Autre quantité (ml)"><button class="btn sm" data-a="waterCustom">+ Ajouter</button></div>
-      <button class="btn sm ghost block mt8" data-a="bottlesManage">🍼 Gérer mes bouteilles</button></div>` : ''}</div>`;
+      <button class="btn sm ghost block mt8" data-a="bottlesManage">🍼 Gérer mes bouteilles</button>
+      <button class="btn sm danger-ghost block mt8" data-a="waterOff">🚫 Arrêter de suivre l’eau</button></div>` : ''}</div>`;
 }
 A.waterMore = () => { S.ui.waterMore = !S.ui.waterMore; save(); render(); };
 function addWater(ml, k) { k = k || S.ui.nutDate || dk(); S.water[k] = Math.max(0, (S.water[k] || 0) + ml); save(); }
@@ -216,7 +220,7 @@ function handleLink() {
 function missingOn(k) {
   const m = [];
   if (!(S.log[k] || []).length) m.push('food');
-  if (!(S.water[k] > 0)) m.push('water');
+  if (TW() && !(S.water[k] > 0)) m.push('water');
   (S.supps || []).forEach(s => { if (s.hour != null && !((S.suppLog || {})[k] || []).includes(s.id)) m.push('supp:' + s.id); });
   return m;
 }
