@@ -182,7 +182,7 @@ function habitsHTML() {
       <div class="row between"><div><b class="habit-n">${h.icon} ${esc(h.name)}</b>${h.sub ? `<div class="muted sm">${h.sub}</div>` : ''}</div><span class="streakpill">🔥 ${s.streak}</span></div>
       ${habitGrid(h)}
       <div class="row between sm mt8"><span><b>${s.pct == null ? '–' : s.pct + ' %'}</b> <span class="muted">(${s.good}/${s.good + s.bad})</span></span>
-      ${h.legend ? `<span class="hleg"><i class="hs-gym"></i>gym / repos <i class="hs-pending"></i>à reprendre <i class="hs-miss"></i>manqué</span>` : `<span class="hleg"><i class="hs-ok"></i>atteint <i class="hs-miss"></i>manqué</span>`}</div>
+      ${h.legend ? `<span class="hleg"><i class="hs-gym"></i>gym <i class="hs-rest"></i>repos <i class="hs-pending"></i>à reprendre <i class="hs-miss"></i>manqué</span>` : `<span class="hleg"><i class="hs-ok"></i>atteint <i class="hs-miss"></i>manqué</span>`}</div>
     </div>`; }).join('')}
     <p class="muted sm">Gym : t’as droit à ${restBudget()} rest days par semaine (7 − ${S.settings.weeklyTarget} séances), n’importe quel jour. Un rest de trop devient « à reprendre » : fais une séance de plus que ton objectif la semaine d’après (ex. 4/5 puis 6/5 = deux semaines réussies). Il devient rouge seulement si tu l’as pas repris à la fin de la semaine suivante.</p>`;
 }
