@@ -103,7 +103,7 @@ function drawGrid(st, keys, cols, widthPt) {
       return;
     }
     ctx.addPath(p);
-    ctx.setFillColor(s === "gym" ? new Color(COLOR) : (s === "rest" || s === "swap") ? new Color(COLOR, 0.42) : s === "miss" ? new Color("#FF453A", 0.32) : new Color("#FFFFFF", 0.06));
+    ctx.setFillColor(s === "gym" || s === "rest" || s === "swap" ? new Color(COLOR) : s === "miss" ? new Color("#FF453A", 0.32) : new Color("#FFFFFF", 0.06));
     ctx.fillPath();
   });
   return { img: ctx.getImage(), h: (rows * cell + (rows - 1) * gap) / scale };
