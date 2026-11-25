@@ -55,3 +55,12 @@ export async function logout() { await F.signOut(auth); }
 export async function syncNow() { await push(); }
 
 export async function refresh() { if (auth && auth.currentUser) await pull(auth.currentUser); }
+
+/* ---------- données partagées (section cachée) ---------- */
+export function uid() { return auth && auth.currentUser ? auth.currentUser.uid : null; }
+export async function bdAdd(t, name) { const u = auth.currentUser; if (!u) throw new Error('auth'); return (await F.addDoc(F.collection(db, 'bd'), { uid: u.uid, name: name || (u.email || '').split('@')[0], t })).id; }
+export async function bdDel(id) { await F.deleteDoc(F.doc(db, 'bd', id)); }
+export function bdWatch(cb, err) {
+  const since = Date.now() - 400 * 864e5;
+  return F.onSnapshot(F.query(F.collection(db, 'bd'), F.where('t', '>=', since)), s => cb(s.docs.map(d => ({ id: d.id, ...d.data() }))), e => { console.warn(e); err && err(e); });
+}
