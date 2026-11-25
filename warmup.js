@@ -43,8 +43,8 @@ function wuHTML() {
   const L = wuList(QL.ex);
   return `<div class="card inset wu mb">
     <button class="row between wuhead" data-a="wuOpen" style="width:100%;background:none;border:0;color:inherit;padding:0;text-align:left">
-      <b>🔥 Réchauffement ${done ? '<span class="ok">✓ fait</span>' : `<span class="muted sm">· ~5 min · ${L.length} exos</span>`}</b><span class="muted">${open ? '▴' : '▾'}</span></button>
-    ${open ? `<div class="mt8">${L.map(x => `<div class="hrow" style="align-items:flex-start;gap:10px"><span class="grow"><b>${esc(x.n)}</b>${x.tag ? ` <span class="chip" style="padding:1px 7px;font-size:11px">🩹 ${esc(x.tag)}</span>` : ''}<div class="muted sm">${esc(x.why)}</div></span><b class="sm" style="white-space:nowrap">${esc(x.d)}</b></div>`).join('')}
+      <b>🔥 Réchauffement ${done ? '<span class="ok">✓ fait</span>' : `<span class="muted sm">· ${L.length} exos</span>`}</b><span class="muted">${open ? '▴' : '▾'}</span></button>
+    ${open ? `<div class="mt8">${L.map(x => `<div class="hrow" style="align-items:flex-start;gap:10px"><span class="grow"><b>${esc(x.n)}</b>${x.tag ? ` <span class="chip" style="padding:1px 7px;font-size:11px">🩹 ${esc(x.tag)}</span>` : ''}<div class="muted sm">${esc(x.why)}</div></span></div>`).join('')}
       <p class="muted sm mt8">Bands pis poids du corps seulement. ${injuries().length ? '' : 'Ajoute tes blessures dans Réglages pour des exos ciblés.'}</p>
       ${done ? '' : `<button class="btn block acc mt8" data-a="wuDone">Réchauffement fait ✓</button>`}</div>` : ''}
   </div>`;
