@@ -438,18 +438,32 @@ A.faNewSave = () => { const x = FA.nf; if (!x.name.trim()) return toast('Donne-l
 let EF = null;
 A.editFood = el => {
   const k = S.ui.nutDate || dk(); EF = (S.log[k] || []).find(x => x.id === el.dataset.id); if (!EF) return;
-  openSheet(() => `<h2 class="sh-t">${esc(EF.name)}</h2><div class="muted mb">${esc(EF.serv || 'portion')} · ${fmt(EF.cal)} cal/portion</div>
+  EF._keep = true;
+  openSheet(() => `<h2 class="sh-t">Modifier</h2>
+    <label class="fl">Nom<input data-i="efT" data-k="name" value="${esc(EF.name)}"></label>
+    <label class="fl">Description / portion<input data-i="efT" data-k="serv" value="${esc(EF.serv || '')}" placeholder="ex. 1 bol, 18 pcs 80 g"></label>
     <label class="fl">Portions<input inputmode="decimal" data-i="efQ" value="${EF.q}"></label>
     <div class="muted sm mb">Valeurs pour 1 portion :</div>
     <div class="grid2"><label class="fl">Calories<input inputmode="decimal" data-i="efM" data-k="cal" value="${EF.cal}"></label><label class="fl">Protéines (g)<input inputmode="decimal" data-i="efM" data-k="p" value="${EF.p}"></label>${CF() ? `<label class="fl">Glucides (g)<input inputmode="decimal" data-i="efM" data-k="c" value="${EF.c}"></label><label class="fl">Lipides (g)<input inputmode="decimal" data-i="efM" data-k="f" value="${EF.f}"></label>` : ''}</div>
     <label class="fl">Repas<select data-i="efMeal">${MEALS.map(m => `<option ${m === EF.meal ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
+    <label class="toggle"><span>Garder ces changements pour les prochaines fois<small class="muted" style="display:block;font-weight:500;font-size:12.5px">Sauvegardé dans « Mes aliments »</small></span><input type="checkbox" data-i="efKeep" checked></label>
     <button class="btn block acc mt" data-a="efSave">OK</button><button class="btn block danger-ghost mt8" data-a="efDel">Supprimer</button>`);
 };
+I.efT = el => { const v = el.value; if (el.dataset.k === 'name' && !v.trim()) return; EF[el.dataset.k] = el.dataset.k === 'name' ? v.trim() : v; };
+C.efKeep = el => EF._keep = el.checked;
 I.efM = el => { const v = num(el.value); if (v != null && v >= 0) EF[el.dataset.k] = v; };
 I.efQ = el => { const q = num(el.value); if (q) EF.q = q; };
 C.efMeal = el => EF.meal = el.value;
-A.efSave = () => { save(); closeSheet(); render(); };
-A.efDel = () => { const k = S.ui.nutDate || dk(); S.log[k] = S.log[k].filter(x => x !== EF); save(); closeSheet(); render(); };
+A.efSave = () => {
+  const keep = EF._keep; delete EF._keep;
+  if (keep) {
+    const v = { name: EF.name, serv: EF.serv || 'portion', cal: EF.cal, p: EF.p, c: EF.c, f: EF.f };
+    let f = S.foods.find(x => x.id === EF.foodId);
+    if (f) Object.assign(f, v); else { f = { id: 'cf_' + uid(), ...v }; S.foods.unshift(f); EF.foodId = f.id; }
+  }
+  save(); closeSheet(); render(); toast('Modifié ✅', 1200);
+};
+A.efDel = () => { delete EF._keep; const k = S.ui.nutDate || dk(); S.log[k] = S.log[k].filter(x => x !== EF); save(); closeSheet(); render(); };
 
 /* objectifs + calcul TDEE */
 let GO = null;
