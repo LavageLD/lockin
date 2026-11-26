@@ -27,7 +27,7 @@ function habitStart(S) {
 }
 function gymStatuses(S, weeks) {
   // flexible : (7 − séances visées) jours de repos par semaine, n'importe quel jour
-  const today = dk(new Date()), start = habitStart(S), t = S.settings.weeklyTarget || 4, budget = Math.max(0, 7 - t), R = S.restDays || {};
+  const today = dk(new Date()), start = habitStart(S), budget = S.settings.restAllowed != null ? Math.max(0, Math.min(7, S.settings.restAllowed)) : Math.max(0, 7 - (S.settings.weeklyTarget || 4)), t = Math.max(1, 7 - budget), R = S.restDays || {};
   const did = new Set((S.workouts || []).map(w => dk(w.start))), out = {}, curWs = startOfWeek(new Date()), W = [];
   for (let w = weeks; w >= 0; w--) {
     const ws = addDays(curWs, -7 * w);

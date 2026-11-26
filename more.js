@@ -87,10 +87,11 @@ function habitStart() {
   return c.length ? c.sort()[0] : dk();
 }
 // Statut gym par jour : gym, rest, swap (séance reprise ailleurs dans la semaine ou la suivante), pending, miss, future, off
-function restBudget() { return Math.max(0, 7 - (S.settings.weeklyTarget || 4)); }
+function restBudget() { const r = S.settings.restAllowed; return r != null ? Math.max(0, Math.min(7, r)) : Math.max(0, 7 - (S.settings.weeklyTarget || 4)); }
+function minWeekly() { return Math.max(1, 7 - restBudget()); } // séances minimum pour une semaine réussie
 function gymStatuses(weeks) {
   // flexible : chaque semaine t'as droit à (7 − séances visées) jours de repos, n'importe quel jour
-  const today = dk(), start = habitStart(), did = new Set(S.workouts.map(w => dk(w.start))), out = {}, t = S.settings.weeklyTarget || 4, R = S.restDays || {};
+  const today = dk(), start = habitStart(), did = new Set(S.workouts.map(w => dk(w.start))), out = {}, t = minWeekly(), R = S.restDays || {};
   const curWs = startOfWeek(new Date()), W = [];
   for (let w = weeks; w >= 0; w--) { // une semaine de plus avant pour le report
     const ws = addDays(curWs, -7 * w);
@@ -130,7 +131,7 @@ A.restToday = () => {
   toast(used < b ? `😴 Rest day (${used + 1}/${b} cette semaine)` : `😴 Rest noté — t’as dépassé tes ${b} rests, faudra la reprendre`, 2600);
 };
 weekStreak = function () {
-  const st = gymStatuses(104), t = S.settings.weeklyTarget; let ws = startOfWeek(new Date()), n = 0;
+  const st = gymStatuses(104), t = minWeekly(); let ws = startOfWeek(new Date()), n = 0;
   const weekDays = w => Array.from({ length: 7 }, (_, i) => st[dk(addDays(w, i))]);
   const cur = weekDays(ws); if (weekCount(ws) >= t && !cur.includes('miss')) n++;
   ws = addDays(ws, -7);
@@ -145,7 +146,7 @@ consistency = function (weeks = 12) {
   const st = gymStatuses(weeks); let good = 0, total = 0, ws = startOfWeek(new Date());
   for (let i = 1; i < weeks; i++) { const w = addDays(ws, -7 * i); const d = Array.from({ length: 7 }, (_, j) => st[dk(addDays(w, j))]); if (d.every(s => s === 'off' || s == null)) continue; total++; if (!d.includes('miss')) good++; }
   const cur = Array.from({ length: 7 }, (_, j) => st[dk(addDays(ws, j))]);
-  if (weekCount(ws) >= S.settings.weeklyTarget && !cur.includes('miss')) { good++; total++; }
+  if (weekCount(ws) >= minWeekly() && !cur.includes('miss')) { good++; total++; }
   return total ? Math.round(good / total * 100) : 100;
 };
 function owedCount() { const st = gymStatuses(2), today = dk(); return Object.keys(st).filter(k => k < today && st[k] === 'pending').length; }
@@ -176,7 +177,7 @@ function habitGrid(h) {
 }
 function habitsHTML() {
   const gd = gymDays(), todayIdx = (new Date().getDay() + 6) % 7, plannedToday = gd.includes(todayIdx);
-  return `<div class="card"><div class="row between"><div><b>Ton horaire</b><div class="muted sm">${S.settings.weeklyTarget} séances/sem. · ${restBudget()} rest days n’importe quel jour · prévu : ${gd.map(i => DAYNAMES[i].slice(0, 3)).join(', ')}</div></div><button class="link" data-a="gymSched">Modifier</button></div>
+  return `<div class="card"><div class="row between"><div><b>Ton horaire</b><div class="muted sm">objectif ${S.settings.weeklyTarget} séances/sem. · ${restBudget()} rest days permis (min. ${minWeekly()}) · prévu : ${gd.map(i => DAYNAMES[i].slice(0, 3)).join(', ')}</div></div><button class="link" data-a="gymSched">Modifier</button></div>
       <div class="sm mt8">Aujourd’hui : <b class="txt">${doneToday() ? '✅ séance faite' : (S.restDays || {})[dk()] ? '😴 rest day ✓' : plannedToday ? '🏋️ jour de gym' : '😴 rest prévu'}</b> · rests cette semaine ${restsThisWeek()}/${restBudget()}</div></div>
     ${habitsList().map(h => { const s = habitStats(h.st); return `<div class="card habit" style="--hc:${h.color}">
       <div class="row between"><div><b class="habit-n">${h.icon} ${esc(h.name)}</b>${h.sub ? `<div class="muted sm">${h.sub}</div>` : ''}</div><span class="streakpill">🔥 ${s.streak}</span></div>
@@ -184,7 +185,7 @@ function habitsHTML() {
       <div class="row between sm mt8"><span><b>${s.pct == null ? '–' : s.pct + ' %'}</b> <span class="muted">(${s.good}/${s.good + s.bad})</span></span>
       ${h.legend ? `<span class="hleg"><i class="hs-gym"></i>gym <i class="hs-rest"></i>repos <i class="hs-pending"></i>à reprendre <i class="hs-miss"></i>manqué</span>` : `<span class="hleg"><i class="hs-ok"></i>atteint <i class="hs-miss"></i>manqué</span>`}</div>
     </div>`; }).join('')}
-    <p class="muted sm">Gym : t’as droit à ${restBudget()} rest days par semaine (7 − ${S.settings.weeklyTarget} séances), n’importe quel jour. Un rest de trop devient « à reprendre » : fais une séance de plus que ton objectif la semaine d’après (ex. 4/5 puis 6/5 = deux semaines réussies). Il devient rouge seulement si tu l’as pas repris à la fin de la semaine suivante.</p>`;
+    <p class="muted sm">Gym : t’as droit à ${restBudget()} rest days par semaine, n’importe quel jour (minimum ${minWeekly()} séances pour une semaine réussie). Un rest de trop devient « à reprendre » : fais une séance de plus que ton objectif la semaine d’après (ex. 4/5 puis 6/5 = deux semaines réussies). Il devient rouge seulement si tu l’as pas repris à la fin de la semaine suivante.</p>`;
 }
 let GS = null;
 A.gymSched = () => {
