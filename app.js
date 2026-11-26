@@ -1,6 +1,6 @@
 'use strict';
 /* ===== LOCKIN — cœur de l'app ===== */
-const VERSION = '1.17.1';
+const VERSION = '1.17.2';
 const KEY = 'lockin_v1';
 
 /* ---------- utilitaires ---------- */

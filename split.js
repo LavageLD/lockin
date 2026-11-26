@@ -17,13 +17,18 @@ function cycleState() {
     const lk = dk(last.start), today = dk();
     const rested = Object.keys(S.restDays || {}).some(k => k > lk && k <= today) || daysBetween(last.start, Date.now()) >= 2;
     if (C.includes('rest') && !rested) return { next: 'rest', done: round };
-    return { next: R[0], done: new Set() };
+    return { next: mostReady(R), done: new Set() };
   }
   if (!last) return { next: R[0], done: round };
   // prochaine routine pas encore faite dans ce tour, en suivant l'ordre après la dernière faite
   const li = C.indexOf(last.routineId);
   for (let j = 1; j <= C.length; j++) { const x = C[(li + j) % C.length]; if (x !== 'rest' && !round.has(x)) return { next: x, done: round }; }
   return { next: R[0], done: round };
+}
+// la routine la plus reposée = celle faite il y a le plus longtemps
+function mostReady(R) {
+  const lastOf = id => { for (let i = S.workouts.length - 1; i >= 0; i--) if (S.workouts[i].routineId === id) return S.workouts[i].start; return 0; };
+  return [...R].sort((a, b) => lastOf(a) - lastOf(b))[0];
 }
 function cycleIdx() { const st = cycleState(); return st ? cyc().indexOf(st.next) : -1; }
 function cycleNextWorkout() { const st = cycleState(); if (!st) return null; const C = cyc(), id = st.next === 'rest' ? C.find(x => x !== 'rest') : st.next; return S.routines.find(r => r.id === id); }
