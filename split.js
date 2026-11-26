@@ -2,19 +2,31 @@
 const cyc = () => (S.settings.cycle || []).filter(x => x === 'rest' || S.routines.some(r => r.id === x));
 const cycName = x => x === 'rest' ? '😴 Rest' : ((S.routines.find(r => r.id === x) || {}).name || '?');
 
-// Où t'es rendu : regarde ta dernière séance du cycle (ou ton dernier rest coché)
-function cycleIdx() {
-  const C = cyc(); if (!C.length) return -1;
-  let lastW = null; for (let i = S.workouts.length - 1; i >= 0; i--) { if (C.includes(S.workouts[i].routineId)) { lastW = S.workouts[i]; break; } }
-  if (!lastW) return C.findIndex(x => x !== 'rest');
-  const wi = C.indexOf(lastW.routineId), wk = dk(lastW.start);
-  let n = (wi + 1) % C.length;
-  // un rest coché après ta dernière séance = le rest du cycle est fait
-  const restAfter = Object.keys(S.restDays || {}).some(k => k > wk && k <= dk());
-  if (C[n] === 'rest' && restAfter) n = (n + 1) % C.length;
-  return n;
+// Où t'es rendu : on rejoue tes séances dans l'ordre. Un « tour » = chaque routine du cycle faite une fois,
+// peu importe l'ordre. Si t'inverses Legs pis Arms, l'app te propose celle qui manque.
+function cycleState() {
+  const C = cyc(), R = C.filter(x => x !== 'rest'); if (!R.length) return null;
+  const W = S.workouts.filter(w => R.includes(w.routineId)).slice(-40);
+  let round = new Set(), complete = false, last = null;
+  W.forEach(w => {
+    if (complete || round.has(w.routineId)) { round = new Set(); complete = false; }
+    round.add(w.routineId); last = w;
+    if (R.every(id => round.has(id))) complete = true;
+  });
+  if (complete) {
+    const lk = dk(last.start), today = dk();
+    const rested = Object.keys(S.restDays || {}).some(k => k > lk && k <= today) || daysBetween(last.start, Date.now()) >= 2;
+    if (C.includes('rest') && !rested) return { next: 'rest', done: round };
+    return { next: R[0], done: new Set() };
+  }
+  if (!last) return { next: R[0], done: round };
+  // prochaine routine pas encore faite dans ce tour, en suivant l'ordre après la dernière faite
+  const li = C.indexOf(last.routineId);
+  for (let j = 1; j <= C.length; j++) { const x = C[(li + j) % C.length]; if (x !== 'rest' && !round.has(x)) return { next: x, done: round }; }
+  return { next: R[0], done: round };
 }
-function cycleNextWorkout() { const C = cyc(), i = cycleIdx(); if (i < 0) return null; for (let j = 0; j < C.length; j++) { const x = C[(i + j) % C.length]; if (x !== 'rest') return S.routines.find(r => r.id === x); } return null; }
+function cycleIdx() { const st = cycleState(); return st ? cyc().indexOf(st.next) : -1; }
+function cycleNextWorkout() { const st = cycleState(); if (!st) return null; const C = cyc(), id = st.next === 'rest' ? C.find(x => x !== 'rest') : st.next; return S.routines.find(r => r.id === id); }
 
 // la prochaine séance proposée suit le cycle
 const _nextRoutine = nextRoutine;
@@ -26,7 +38,7 @@ function splitStripHTML() {
   const label = done ? `✅ ${esc(done.name)} fait` : restToday ? '😴 Rest aujourd’hui' : C[i] === 'rest' ? '😴 Rest prévu (ou enchaîne si t’es motivé)' : `🏋️ ${esc(cycName(C[i]))}`;
   return `<div class="card"><div class="row between"><b>🔁 Ton split</b><button class="link" data-a="splitOpen">Modifier</button></div>
     <div class="sm mt8">Aujourd’hui : <b class="txt">${label}</b></div>
-    <div class="chips mt8">${C.map((x, j) => `<span class="chip ${j === i && !done && !restToday ? 'on' : ''}">${esc(cycName(x))}</span>`).join('<span class="muted">›</span>')}</div></div>`;
+    <div class="chips mt8">${C.map((x, j) => `<span class="chip ${j === i && !done && !restToday ? 'on' : ''}">${(cycleState() || { done: new Set() }).done.has(x) ? '✓ ' : ''}${esc(cycName(x))}</span>`).join('<span class="muted">›</span>')}</div></div>`;
 }
 (function hookHomeSplit() { const h = VIEWS.home; VIEWS.home = () => { const html = h(), c = splitStripHTML(), i = html.indexOf('<div class="card streak">'); return i > 0 ? html.slice(0, i) + c + html.slice(i) : html; }; })();
 
