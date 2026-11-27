@@ -1,6 +1,6 @@
 /* Lockin — service worker (fonctionne hors ligne) */
-const CACHE = 'lockin-v1.17.3';
-const SHELL = ['extra.js', 'warmup.js', 'coachpro.js', 'hidden.js', 'split.js', 'onboard.js', 'auth.js', 'firebase-config.js', './', 'index.html', 'styles.css', 'data.js', 'app.js', 'more.js', 'coach.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
+const CACHE = 'lockin-v1.18.0';
+const SHELL = ['extra.js', 'warmup.js', 'coachpro.js', 'hidden.js', 'split.js', 'labelparse.js', 'scan.js', 'onboard.js', 'auth.js', 'firebase-config.js', './', 'index.html', 'styles.css', 'data.js', 'app.js', 'more.js', 'coach.js', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== 'lockin-ai').map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
