@@ -623,6 +623,7 @@ A.settings = () => openSheet(() => {
   <label class="toggle"><span>Son + vibration fin du repos</span><input type="checkbox" data-i="stSound" ${s.sound ? 'checked' : ''}></label>
   <h3 class="mt">Raccourcis</h3>
   <button class="li tap" data-a="shortcutsHelp">⚡ Raccourcis iPhone : gym auto, bouteille, pas<span class="grow"></span><span class="chev">›</span></button>
+  <label class="toggle"><span>Mode simple pour les séances<small class="muted" style="display:block;font-weight:500;font-size:12.5px">Juste cocher ta séance, sans entrer tes poids (tu peux encore si tu veux)</small></span><input type="checkbox" data-i="simpleLog" ${S.settings.simpleLog ? 'checked' : ''}></label>
   <label class="toggle"><span>Suivre l’eau<small class="muted" style="display:block;font-weight:500;font-size:12.5px">Off = plus de carte eau, de rappels ni de case dans tes habitudes</small></span><input type="checkbox" data-i="trackWater" ${S.settings.trackWater !== false ? 'checked' : ''}></label>
   <label class="toggle"><span>Suivre glucides + lipides</span><input type="checkbox" data-i="trackCF" ${CF() ? 'checked' : ''}></label>
   <h3 class="mt">Widget</h3>
@@ -763,3 +764,5 @@ A.ceDel = () => { S.caf[CE.k] = S.caf[CE.k].filter(x => x !== CE.x); save(); clo
 
 // réajuste les grilles quand l'écran change (rotation, fenêtre d'ordi)
 let _rsT = null, _rsW = window.innerWidth; window.addEventListener('resize', () => { clearTimeout(_rsT); _rsT = setTimeout(() => { if (Math.abs(window.innerWidth - _rsW) > 40) { _rsW = window.innerWidth; render(); } }, 250); });
+
+C.simpleLog = el => { S.settings.simpleLog = el.checked; save(); toast(el.checked ? 'Mode simple : tu coches pis c’est fait ✅' : 'Mode complet : poids pis reps', 1800); };

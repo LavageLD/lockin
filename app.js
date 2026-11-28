@@ -1,6 +1,6 @@
 'use strict';
 /* ===== LOCKIN — cœur de l'app ===== */
-const VERSION = '1.18.0';
+const VERSION = '1.18.1';
 const KEY = 'lockin_v1';
 
 /* ---------- utilitaires ---------- */
@@ -842,9 +842,9 @@ function qlRender() {
     <input class="title-in" data-i="qlName" value="${esc(QL.name)}" placeholder="Nom de la séance">
     <label class="fl">Date<input type="date" data-i="qlDate" value="${QL.date}" max="${today}"></label>
     ${!QL.ex.length && S.routines.length ? `<div class="muted sm mb">Charger une routine :</div><div class="chips mb">${S.routines.map(r => `<button class="chip" data-a="qlLoad" data-id="${r.id}">${esc(r.name)}</button>`).join('')}</div>` : ''}
-    ${QL.ex.length ? `<p class="muted sm mb">Les poids et reps sont pré-remplis selon ta dernière fois et ta progression. Change juste ce qui est différent, pis enregistre.</p>` : ''}
+    ${QL.ex.length ? `<p class="muted sm mb">${S.settings.simpleLog ? 'Mode simple : enlève les exos que t’as pas faits pis enregistre. Tes poids sont optionnels (✏️ si tu veux les noter).' : 'Les poids et reps sont pré-remplis selon ta dernière fois et ta progression. Change juste ce qui est différent, pis enregistre.'}</p>` : ''}
     ${QL.ex.map((e, i) => { const x = EX(e.exId), cols = COLS[x.type]; const s0 = e.sets[0] || {}; const same = e.sets.every(s => String(s.w) === String(s0.w) && String(s.r) === String(s0.r));
-      const noW = x.type === 'w' && e.sets.every(s => !num(s.w));
+      const noW = !S.settings.simpleLog && x.type === 'w' && e.sets.every(s => !num(s.w));
       const summ = noW ? `<span class="warn">${e.sets.length} × ${s0.r || '?'} · poids à entrer</span>` : x.type === 'c' ? e.sets.map(s => setStr({ w: num(s.w), r: num(s.r) }, 'c')).join(' · ') : same ? `${e.sets.length} × ${s0.r || '?'}${x.type === 't' ? ' s' : ''}${num(s0.w) ? ' @ ' + fmt(num(s0.w), 1) + (x.type === 'w' ? ' ' + u() : '') : ''}` : e.sets.map(s => setStr({ w: num(s.w), r: num(s.r) }, x.type)).join(' · ');
       return `<div class="qlex ${e.on ? '' : 'off'}">
         <div class="qlhead"><button class="qlck ${e.on ? 'on' : ''}" data-a="qlTog" data-n="${i}">${IC.check}</button>
@@ -878,7 +878,7 @@ A.qlSave = () => {
   const ex = QL.ex.filter(e => e.on).map(e => ({ exId: e.exId, note: e.note, sets: e.sets.map(s => ({ w: num(s.w) || 0, r: num(s.r) || 0, rpe: null, t: s.t || 'n' })).filter(s => s.r > 0 || s.w > 0) })).filter(e => e.sets.length);
   if (!ex.length) return toast('Ajoute au moins un exercice avec des reps');
   const miss = QL.ex.findIndex(e => e.on && EX(e.exId).type === 'w' && e.sets.every(s => !num(s.w)));
-  if (miss >= 0) { QL.open = miss; paintSheet(); return toast(`Entre le poids pour « ${EX(QL.ex[miss].exId).name} » (juste la 1re fois, après c’est pré-rempli)`, 3500); }
+  if (miss >= 0 && !S.settings.simpleLog) { QL.open = miss; paintSheet(); return toast(`Entre le poids pour « ${EX(QL.ex[miss].exId).name} » (juste la 1re fois, après c’est pré-rempli)`, 3500); }
   const old = QL.wid ? S.workouts.find(w => w.id === QL.wid) : null;
   let start;
   if (old && dk(old.start) === QL.date) start = old.start;
